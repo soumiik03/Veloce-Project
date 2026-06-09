@@ -1,8 +1,6 @@
 import { pgTable, text, uuid, timestamp, integer, bigint } from 'drizzle-orm/pg-core'
 import { users } from './users'
 
-// OAuth account linking table — required by NextAuth v5
-// One user can have multiple OAuth providers linked
 export const accounts = pgTable('accounts', {
   id:                uuid().defaultRandom().primaryKey(),
   userId:            uuid().notNull().references(() => users.id, { onDelete: 'cascade' }),

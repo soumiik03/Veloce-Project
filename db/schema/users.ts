@@ -3,11 +3,11 @@ import { pgTable, text, uuid, timestamp, boolean } from 'drizzle-orm/pg-core'
 export const users = pgTable('users', {
   id:               uuid().defaultRandom().primaryKey(),
   email:            text().unique().notNull(),
-  emailVerified:    timestamp({ withTimezone: true }),          // required by NextAuth Google
-  password:         text(),                                     // null for OAuth-only users
+  emailVerified:    timestamp({ withTimezone: true }),          
+  password:         text(),                                     
   name:             text(),
-  image:            text(),                                     // Google profile picture
-  corsairTenantId:  text().unique(),                            // set on user creation
+  image:            text(),                                     
+  corsairTenantId:  text().unique(),                            
   createdAt:        timestamp({ withTimezone: true }).defaultNow().notNull(),
   updatedAt:        timestamp({ withTimezone: true }).defaultNow().$onUpdate(() => new Date()),
 })
