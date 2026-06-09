@@ -11,16 +11,16 @@ export default auth((req) => {
   const isLoggedIn = !!session
   const { pathname } = nextUrl
 
-  // Always allow NextAuth internals
+  
   if (pathname.startsWith(nextAuthRoutes)) {
     return NextResponse.next()
   }
 
-  // Always allow public routes
+  
   const isPublicRoute = publicRoutes.includes(pathname)
   if (isPublicRoute) return NextResponse.next()
 
-  // Auth routes — redirect to app if already logged in
+  
   const isAuthRoute = authRoutes.some((route) =>
     pathname.startsWith(route)
   )
@@ -31,7 +31,7 @@ export default auth((req) => {
     return NextResponse.next()
   }
 
-  // Protected routes — redirect to login if not logged in
+ 
   const isProtectedRoute = protectedPrefixes.some((prefix) =>
     pathname.startsWith(prefix)
   )
