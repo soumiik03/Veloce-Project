@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: veloce-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: veloce
+    ports:
+      - "5432:5432"
+    volumes:
+      - veloce-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: veloce-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - veloce-redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  veloce-postgres-data:
+  veloce-redis-data:
