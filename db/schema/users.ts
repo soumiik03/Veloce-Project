@@ -7,7 +7,6 @@ export const users = pgTable('users', {
   password:         text(),                                     
   name:             text(),
   image:            text(),                                     
-  corsairTenantId:  text().unique(),                            
   createdAt:        timestamp({ withTimezone: true }).defaultNow().notNull(),
   updatedAt:        timestamp({ withTimezone: true }).defaultNow().$onUpdate(() => new Date()),
 })
