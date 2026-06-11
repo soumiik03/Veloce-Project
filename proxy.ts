@@ -1,18 +1,20 @@
-import { auth } from "@/lib/auth"
+import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
+import { verifyAccessToken } from "@/lib/auth/jwt"
 
 const publicRoutes = ["/"]
 const authRoutes = ["/login", "/register"]
 const protectedPrefixes = ["/app", "/api/emails", "/api/calendar", "/api/agent"]
-const nextAuthRoutes = "/api/auth"
+const authApiRoutes = "/api/auth"
 
-export default auth((req) => {
-  const { nextUrl, auth: session } = req
-  const isLoggedIn = !!session
+export function proxy(req: NextRequest) {
+  const { nextUrl } = req
+  const cookieToken = req.cookies.get("accessToken")?.value
+  const isLoggedIn = cookieToken ? !!verifyAccessToken(cookieToken) : false
   const { pathname } = nextUrl
 
   
-  if (pathname.startsWith(nextAuthRoutes)) {
+  if (pathname.startsWith(authApiRoutes)) {
     return NextResponse.next()
   }
 
@@ -45,7 +47,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: [

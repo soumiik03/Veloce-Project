@@ -1,41 +1,36 @@
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
-
-
-if (!process.env.UPSTASH_REDIS_REST_URL) {
-  throw new Error('UPSTASH_REDIS_REST_URL is not set')
-}
-if (!process.env.UPSTASH_REDIS_REST_TOKEN) {
-  throw new Error('UPSTASH_REDIS_REST_TOKEN is not set')
-}
+import { NextRequest, NextResponse } from 'next/server'
 
 const redis = new Redis({
-  url:   process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 })
-
 
 export const loginRateLimit = new Ratelimit({
   redis,
-  limiter:  Ratelimit.slidingWindow(5, '15 m'),
-  prefix:   'rl:login',
+  limiter: Ratelimit.slidingWindow(5, '15 m'),
+  prefix: 'rl:login',
   analytics: true,
 })
-
 
 export const registerRateLimit = new Ratelimit({
   redis,
-  limiter:  Ratelimit.slidingWindow(3, '1 h'),
-  prefix:   'rl:register',
+  limiter: Ratelimit.slidingWindow(3, '1 h'),
+  prefix: 'rl:register',
   analytics: true,
 })
 
-import { NextRequest, NextResponse } from 'next/server'
+export const apiRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(100, '1 m'),
+  prefix: 'rl:api',
+  analytics: true,
+})
 
 type RateLimitResult =
   | { limited: false }
   | { limited: true; response: NextResponse }
-
 
 function getIP(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for')
@@ -56,17 +51,16 @@ export async function applyRateLimit(
     limited: true,
     response: NextResponse.json(
       {
-        error:   'Too many requests',
-        message: 'You have exceeded the rate limit. Please try again later.',
+        error: 'Too many requests',
+        message: 'Please try again later.',
       },
       {
         status: 429,
         headers: {
-          'X-RateLimit-Limit':     limit.toString(),
+          'X-RateLimit-Limit': limit.toString(),
           'X-RateLimit-Remaining': remaining.toString(),
-          'X-RateLimit-Reset':     reset.toString(),
-         
-          'Retry-After':           Math.ceil((reset - Date.now()) / 1000).toString(),
+          'X-RateLimit-Reset': reset.toString(),
+          'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
         },
       }
     ),
