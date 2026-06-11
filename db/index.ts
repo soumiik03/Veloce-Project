@@ -21,7 +21,6 @@ const pool = new Pool({
 
 pool.on('error', (err) => {
   console.error('[db] Unexpected pool error:', err)
-  process.exit(1)
 })
 
 export const db = drizzle(pool, {
