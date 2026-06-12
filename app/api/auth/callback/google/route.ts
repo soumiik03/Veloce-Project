@@ -1,76 +1,121 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { handleGoogleOAuth } from '@/services/auth/google'
-import { type GoogleOAuthProfile } from '@/lib/auth/oauth'
+import { NextRequest, NextResponse } from "next/server"
+import { handleGoogleOAuth } from "@/services/auth/google"
+import { type GoogleOAuthProfile } from "@/lib/auth/oauth"
+import { cookies } from "next/headers"
 
 /**
  * Google OAuth callback handler
- * Expects: code parameter from Google OAuth flow
- * Implements: Atomic upsert to prevent duplicate users
+ * Exchanges code for access/refresh tokens and user profile details.
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const code = searchParams.get('code')
-    const state = searchParams.get('state')
+    const code = searchParams.get("code")
 
     if (!code) {
       return NextResponse.json(
-        { error: 'Authorization code not provided' },
+        { error: "Authorization code not provided" },
         { status: 400 }
       )
     }
 
-    if (!state) {
+    const clientID = process.env.GOOGLE_CLIENT_ID
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
+
+    if (!clientID || !clientSecret) {
       return NextResponse.json(
-        { error: 'State parameter not provided' },
+        { error: "Google OAuth is not configured on the server" },
+        { status: 500 }
+      )
+    }
+
+    // Exchange auth code for tokens
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        code,
+        client_id: clientID,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }),
+    })
+
+    const tokenData = await tokenResponse.json()
+    if (!tokenResponse.ok) {
+      console.error("[oauth/google] Token exchange failed:", tokenData)
+      return NextResponse.json(
+        { error: tokenData.error_description || "Token exchange failed" },
         { status: 400 }
       )
     }
 
-    // TODO: Verify state parameter for CSRF protection
-    // For now, this is a placeholder for the actual OAuth flow
+    const { access_token, refresh_token, expires_in } = tokenData
 
-    // In production, exchange code for tokens from Google
-    // Then get user profile and handle OAuth
-    // For this skeleton, we mock the profile
-    const profile: GoogleOAuthProfile = {
-      id: 'google_' + code.substring(0, 20), // Mock implementation
-      email: 'user@example.com', // Should come from Google
-      name: 'User Name', // Should come from Google
-      image: undefined,
-      accessToken: code,
-      refreshToken: code,
-      accessTokenExpiresAt: new Date(Date.now() + 3600 * 1000),
+    // Retrieve user profile data
+    const profileResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    })
+
+    const profileData = await profileResponse.json()
+    if (!profileResponse.ok) {
+      return NextResponse.json(
+        { error: "Failed to fetch user profile from Google" },
+        { status: 400 }
+      )
     }
 
+    const profile: GoogleOAuthProfile = {
+      id: profileData.sub,
+      email: profileData.email,
+      name: profileData.name,
+      image: profileData.picture,
+      accessToken: access_token,
+      refreshToken: refresh_token || null,
+      accessTokenExpiresAt: new Date(Date.now() + expires_in * 1000),
+    }
+
+    // Authenticate, save tokens to db, and provision Corsair tenant
     const result = await handleGoogleOAuth(profile)
 
-    // Return tokens to client
-    // Client should store these securely (httpOnly cookies recommended)
+    // Store JWT access/refresh tokens in secure cookies
+    const cookieStore = await cookies()
+    cookieStore.set("accessToken", result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 15 * 60,
+      path: "/",
+    })
+    cookieStore.set("refreshToken", result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60,
+      path: "/",
+    })
+    cookieStore.set("veloce_logged_in", "true", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60,
+      path: "/",
+    })
+
+    // Redirect user to the workspace dashboard
+    return NextResponse.redirect(new URL("/workspace", req.url))
+  } catch (error: any) {
+    console.error("[oauth/google] Error:", error)
     return NextResponse.json(
-      {
-        user: {
-          id: result.userId,
-          email: result.email,
-          isNewUser: result.isNewUser,
-        },
-        tokens: {
-          accessToken: result.accessToken,
-          refreshToken: result.refreshToken,
-          expiresIn: result.expiresIn,
-        },
-      },
-      { status: 200 }
-    )
-  } catch (error) {
-    console.error('[oauth/google] Error:', error)
-    return NextResponse.json(
-      { error: 'OAuth callback failed' },
+      { error: error.message || "OAuth callback failed" },
       { status: 500 }
     )
   }
 }
 
 export async function POST() {
-  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 })
 }

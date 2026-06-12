@@ -4,7 +4,7 @@ import { verifyAccessToken } from "@/lib/auth/jwt"
 
 const publicRoutes = ["/"]
 const authRoutes = ["/login", "/register"]
-const protectedPrefixes = ["/app", "/api/emails", "/api/calendar", "/api/agent"]
+const protectedPrefixes = ["/mail", "/calender", "/calendar", "/settings", "/onboarding", "/workspace", "/api/emails", "/api/calendar", "/api/agent"]
 const authApiRoutes = "/api/auth"
 
 export function proxy(req: NextRequest) {
@@ -13,30 +13,26 @@ export function proxy(req: NextRequest) {
   const isLoggedIn = cookieToken ? !!verifyAccessToken(cookieToken) : false
   const { pathname } = nextUrl
 
-  
+  // Allow internal auth API routes without checks
   if (pathname.startsWith(authApiRoutes)) {
     return NextResponse.next()
   }
 
-  
+  // Allow public routes
   const isPublicRoute = publicRoutes.includes(pathname)
   if (isPublicRoute) return NextResponse.next()
 
-  
-  const isAuthRoute = authRoutes.some((route) =>
-    pathname.startsWith(route)
-  )
+  // Handle auth routes (login/register)
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
   if (isAuthRoute) {
     if (isLoggedIn) {
-      return NextResponse.redirect(new URL("/app/mail", nextUrl))
+      return NextResponse.redirect(new URL("/workspace", nextUrl))
     }
     return NextResponse.next()
   }
 
- 
-  const isProtectedRoute = protectedPrefixes.some((prefix) =>
-    pathname.startsWith(prefix)
-  )
+  // Protect designated prefixes
+  const isProtectedRoute = protectedPrefixes.some((prefix) => pathname.startsWith(prefix))
   if (isProtectedRoute) {
     if (!isLoggedIn) {
       const redirectUrl = new URL("/login", nextUrl)
