@@ -1,159 +1,331 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { StatusBadge } from "@/components/ui/status-badge"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function SettingsPage() {
-  const [googleConnected, setGoogleConnected] = useState(true)
-  const [autoDraft, setAutoDraft] = useState(true)
-  const [conflictScan, setConflictScan] = useState(true)
-  const [notificationEmail, setNotificationEmail] = useState("")
+  const { logout } = useAuth()
+  
+  // Connection statuses
+  const [connectionStatus, setConnectionStatus] = useState<{
+    gmail: boolean
+    googlecalendar: boolean
+    connected: boolean
+  }>({ gmail: true, googlecalendar: true, connected: true })
 
+  // Preferences States
+  const [selectedModel, setSelectedModel] = useState("Sonnet 4.6")
+  const [bufferSize, setBufferSize] = useState(15)
+  const [timezone, setTimezone] = useState("America/New_York")
+  const [workingHoursStart, setWorkingHoursStart] = useState("09:00")
+  const [workingHoursEnd, setWorkingHoursEnd] = useState("17:00")
+  
+  // Toggles
+  const [conflictAlerts, setConflictAlerts] = useState(true)
+  const [dailySummary, setDailySummary] = useState(true)
+
+  // Fetch current connection statuses on mount
   useEffect(() => {
-    setNotificationEmail("soumik@example.com")
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("/api/auth/corsair/status")
+        if (res.ok) {
+          const data = await res.json()
+          setConnectionStatus(data)
+        }
+      } catch (err) {
+        console.error("Failed to fetch connection status in settings:", err)
+      }
+    }
+    fetchStatus()
   }, [])
 
+  const handleDisconnect = async (plugin: "gmail" | "googlecalendar") => {
+    alert(`Disconnecting ${plugin}... Workspace auth will clear on reload.`)
+    // Mock disconnect by updating state
+    setConnectionStatus(prev => ({
+      ...prev,
+      [plugin]: false,
+      connected: false
+    }))
+  }
+
+  const handleReconnect = async (plugin: "gmail" | "googlecalendar") => {
+    try {
+      const res = await fetch(`/api/auth/corsair/connect?plugin=${plugin}`)
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch {
+      alert("Failed to trigger oauth.")
+    }
+  }
+
   return (
-    <div className="flex-1 flex flex-col gap-6 relative max-w-4xl mx-auto">
-      <header className="pb-4 border-b border-zinc-900">
-        <h1 className="text-2xl font-light text-zinc-100 tracking-tight">Console Settings</h1>
-        <p className="text-xs text-zinc-500 font-light mt-1">Configure your AI agent connections and calendar settings</p>
+    <div className="flex-1 flex flex-col h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-y-auto p-6 md:p-12 max-w-4xl mx-auto w-full select-none">
+      
+      {/* Header */}
+      <header className="pb-6 border-b border-[#1a1a1a] mb-8">
+        <h1 className="text-2xl font-semibold text-white tracking-tight">Settings Calibration</h1>
+        <p className="text-xs text-[#888] font-sans font-light mt-1.5">
+          Configure external OAuth telemetry coordinates and AI agent operational constraints.
+        </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <h3 className="text-lg font-light text-white mb-2 font-sans">Connected Services</h3>
-            <p className="text-xs text-zinc-400 font-light mb-6">
-              Connect your external workspace accounts to authorize Veloce to read threads and draft proposals.
-            </p>
+      {/* Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* COLUMN 1: Settings Form (8 cols) */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* Section 1: Connected Accounts */}
+          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">Connected Accounts</h3>
+              <p className="text-[11px] text-[#666] font-sans mt-1">Manage external auth tunnels for Google Gmail & Calendar.</p>
+            </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-[#151912] border border-zinc-800 rounded-lg">
+            <div className="space-y-3">
+              {/* Gmail Connection Row */}
+              <div className="p-4 bg-[#141414] border border-[#1e1e1e] rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-mono text-xs">
-                    G
+                  <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/15 border border-[#5aa3e8]/20 flex items-center justify-center text-xs font-mono font-bold text-[#5aa3e8]">
+                    M
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-zinc-200">Google Workspace</h4>
-                    <p className="text-[10px] text-zinc-500 font-light">Gmail threads & Calendar events access</p>
+                    <span className="text-xs font-semibold text-white block">Gmail Connection Tunnel</span>
+                    <span className="text-[10px] text-[#555] font-light block">Reads threads and writes replies</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {googleConnected ? (
+                  {connectionStatus.gmail ? (
                     <>
-                      <StatusBadge type="success" pulse>
-                        CONNECTED
-                      </StatusBadge>
+                      <span className="text-[9px] font-mono text-green-400 bg-green-500/5 border border-green-500/10 px-2 py-0.5 rounded-full uppercase">
+                        Active
+                      </span>
                       <button
-                        onClick={() => setGoogleConnected(false)}
-                        className="text-[11px] font-mono text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
+                        onClick={() => handleDisconnect("gmail")}
+                        className="text-[10px] font-mono text-[#555] hover:text-red-400 transition-colors bg-transparent border-0 cursor-pointer"
                       >
                         Disconnect
                       </button>
                     </>
                   ) : (
-                    <Button
-                      onClick={() => setGoogleConnected(true)}
-                      className="py-1.5 px-3"
+                    <button
+                      onClick={() => handleReconnect("gmail")}
+                      className="px-2.5 py-1 bg-white hover:bg-neutral-255 text-black text-[10px] font-mono rounded font-semibold transition-colors cursor-pointer border-0"
                     >
-                      Connect Account
-                    </Button>
+                      Connect
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Calendar Connection Row */}
+              <div className="p-4 bg-[#141414] border border-[#1e1e1e] rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/15 border border-[#5aa3e8]/20 flex items-center justify-center text-xs font-mono font-bold text-[#5aa3e8]">
+                    C
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-white block">Google Calendar Tunnel</span>
+                    <span className="text-[10px] text-[#555] font-light block">Syncs schedule events and limits</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {connectionStatus.googlecalendar ? (
+                    <>
+                      <span className="text-[9px] font-mono text-green-400 bg-green-500/5 border border-green-500/10 px-2 py-0.5 rounded-full uppercase">
+                        Active
+                      </span>
+                      <button
+                        onClick={() => handleDisconnect("googlecalendar")}
+                        className="text-[10px] font-mono text-[#555] hover:text-red-400 transition-colors bg-transparent border-0 cursor-pointer"
+                      >
+                        Disconnect
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleReconnect("googlecalendar")}
+                      className="px-2.5 py-1 bg-white hover:bg-neutral-255 text-black text-[10px] font-mono rounded font-semibold transition-colors cursor-pointer border-0"
+                    >
+                      Connect
+                    </button>
                   )}
                 </div>
               </div>
             </div>
-          </Card>
+          </section>
 
-          <Card>
-            <h3 className="text-lg font-light text-white mb-2 font-sans">Agent Configuration</h3>
-            <p className="text-xs text-zinc-400 font-light mb-6">
-              Calibrate operational boundaries for automation and conflict scoping.
-            </p>
+          {/* Section 2: AI Model Selection */}
+          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">AI Model Selection</h3>
+              <p className="text-[11px] text-[#666] font-sans mt-1">Calibrate model parameters for the streaming co-pilot agent.</p>
+            </div>
 
-            <div className="space-y-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h4 className="text-xs font-semibold text-zinc-200">Autopilot Response Drafting</h4>
-                  <p className="text-[11px] text-zinc-500 font-light leading-relaxed mt-0.5">
-                    Automatically draft responses in Gmail when a scheduling conflict or reschedule request is parsed.
-                  </p>
-                </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { name: "Sonnet 4.6", desc: "Highest intelligence" },
+                { name: "Haiku 1.0", desc: "Fastest response time" },
+                { name: "Opus 3.0", desc: "Complex reasonings" }
+              ].map((model) => (
                 <button
-                  onClick={() => setAutoDraft(!autoDraft)}
-                  className={`w-10 h-6 rounded-full p-1 transition-colors cursor-pointer ${
-                    autoDraft ? "bg-indigo-600" : "bg-zinc-800"
+                  key={model.name}
+                  onClick={() => setSelectedModel(model.name)}
+                  className={`p-3 bg-[#141414] hover:bg-[#1a1a1a] border rounded-lg text-left transition-all cursor-pointer ${
+                    selectedModel === model.name ? "border-[#5aa3e8]/50 ring-1 ring-[#5aa3e8]/20" : "border-[#1e1e1e]"
                   }`}
                 >
-                  <div className={`bg-white w-4 h-4 rounded-full transition-transform ${autoDraft ? "translate-x-4" : "translate-x-0"}`} />
+                  <span className="text-xs font-semibold text-white block">{model.name}</span>
+                  <span className="text-[9px] text-[#555] font-light mt-0.5 block">{model.desc}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Section 3: Meeting Preferences */}
+          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-5">
+            <div>
+              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">Meeting Preferences</h3>
+              <p className="text-[11px] text-[#666] font-sans mt-1">Define focus constraints for scheduler routing.</p>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Buffer select */}
+              <div className="flex items-center justify-between">
+                <span className="text-[#aaa]">Meeting Buffer Size:</span>
+                <select
+                  value={bufferSize}
+                  onChange={(e) => setBufferSize(parseInt(e.target.value))}
+                  className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none"
+                >
+                  <option value={0}>No buffer</option>
+                  <option value={5}>5 minutes</option>
+                  <option value={10}>10 minutes</option>
+                  <option value={15}>15 minutes</option>
+                  <option value={30}>30 minutes</option>
+                </select>
+              </div>
+
+              {/* Working Hours */}
+              <div className="flex items-center justify-between">
+                <span className="text-[#aaa]">Working Hours Range:</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={workingHoursStart}
+                    onChange={(e) => setWorkingHoursStart(e.target.value)}
+                    className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none text-[11px]"
+                  />
+                  <span className="text-[#555] font-mono">to</span>
+                  <input
+                    type="time"
+                    value={workingHoursEnd}
+                    onChange={(e) => setWorkingHoursEnd(e.target.value)}
+                    className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none text-[11px]"
+                  />
+                </div>
+              </div>
+
+              {/* Timezone */}
+              <div className="flex items-center justify-between">
+                <span className="text-[#aaa]">Default Timezone:</span>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none"
+                >
+                  <option value="America/New_York">Eastern Time (EST/EDT)</option>
+                  <option value="America/Chicago">Central Time (CST/CDT)</option>
+                  <option value="America/Denver">Mountain Time (MST/MDT)</option>
+                  <option value="America/Los_Angeles">Pacific Time (PST/PDT)</option>
+                  <option value="UTC">Coordinated Universal Time (UTC)</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        {/* COLUMN 2: Sidebar (4 cols) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Notifications toggles */}
+          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
+            <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold border-b border-[#1e1e1e]/40 pb-2">
+              Notification System
+            </span>
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#aaa]">Conflict Alerts</span>
+                <button
+                  onClick={() => setConflictAlerts(!conflictAlerts)}
+                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer border-0 ${
+                    conflictAlerts ? "bg-[#5aa3e8]" : "bg-[#222]"
+                  }`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full transition-transform ${conflictAlerts ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
               </div>
 
-              <div className="flex items-start justify-between gap-4 border-t border-zinc-900/60 pt-6">
-                <div>
-                  <h4 className="text-xs font-semibold text-zinc-200">Continuous Conflict Monitoring</h4>
-                  <p className="text-[11px] text-zinc-500 font-light leading-relaxed mt-0.5">
-                    Scan your calendar availability in real-time to recommend open slots dynamically.
-                  </p>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#aaa]">Daily Summaries</span>
                 <button
-                  onClick={() => setConflictScan(!conflictScan)}
-                  className={`w-10 h-6 rounded-full p-1 transition-colors cursor-pointer ${
-                    conflictScan ? "bg-indigo-600" : "bg-zinc-800"
+                  onClick={() => setDailySummary(!dailySummary)}
+                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer border-0 ${
+                    dailySummary ? "bg-[#5aa3e8]" : "bg-[#222]"
                   }`}
                 >
-                  <div className={`bg-white w-4 h-4 rounded-full transition-transform ${conflictScan ? "translate-x-4" : "translate-x-0"}`} />
+                  <div className={`bg-white w-4 h-4 rounded-full transition-transform ${dailySummary ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
               </div>
             </div>
-          </Card>
-        </div>
+          </section>
 
-        <div className="space-y-6">
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold text-white mb-3">Notification Matrix</h3>
-            <div className="space-y-4">
-              <Input
-                label="Alert Email Address"
-                type="email"
-                value={notificationEmail}
-                onChange={(e) => setNotificationEmail(e.target.value)}
-              />
-
-              <div className="pt-2">
-                <Button
-                  onClick={() => alert("Notification settings saved")}
-                  className="w-full"
-                >
-                  Save Changes
-                </Button>
+          {/* Keyboard Shortcuts */}
+          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5 space-y-3">
+            <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold border-b border-[#1e1e1e]/40 pb-2">
+              Keyboard Shortcuts
+            </span>
+            <div className="space-y-2 text-[11px] font-mono text-[#777]">
+              <div className="flex justify-between">
+                <span>NEW CHAT:</span>
+                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ N</span>
+              </div>
+              <div className="flex justify-between">
+                <span>COMPOSE EMAIL:</span>
+                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ M</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SYNC TELEMETRY:</span>
+                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ R</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SETTINGS SHIFT:</span>
+                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ ,</span>
               </div>
             </div>
-          </Card>
+          </section>
 
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold text-white mb-3">Workspace Health</h3>
-            <div className="space-y-2 text-[11px] font-mono text-zinc-400">
-              <div className="flex justify-between">
-                <span>API STATUS:</span>
-                <StatusBadge type="success">OPERATIONAL</StatusBadge>
-              </div>
-              <div className="flex justify-between">
-                <span>DB SYNC:</span>
-                <StatusBadge type="success">NOMINAL</StatusBadge>
-              </div>
-              <div className="flex justify-between">
-                <span>LATENCY:</span>
-                <span className="text-zinc-500">12ms</span>
-              </div>
-            </div>
-          </Card>
+          {/* Sign Out Card */}
+          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5">
+            <button
+              onClick={logout}
+              className="w-full py-2.5 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/20 hover:border-red-900/40 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+            >
+              Sign out of Veloce
+            </button>
+          </section>
+
         </div>
+
       </div>
+
     </div>
   )
 }

@@ -44,6 +44,7 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
   headers: async () => [
     {
       source: "/(.*)",

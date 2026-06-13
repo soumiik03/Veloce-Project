@@ -1,6 +1,39 @@
 {
   "eeaf7abf-e1e9-4ae3-9bea-aa3a76d1b926": [
     {
+      "to": "me",
+      "subject": "Re: Sync",
+      "from": "me",
+      "date": "13/6/2026",
+      "snippet": "Thank you for the update!",
+      "id": "sim-thread-1781354525441",
+      "messages": [
+        {
+          "payload": {
+            "headers": [
+              {
+                "name": "Subject",
+                "value": "Re: Sync"
+              },
+              {
+                "name": "From",
+                "value": "me"
+              },
+              {
+                "name": "To",
+                "value": "me"
+              },
+              {
+                "name": "Date",
+                "value": "13/6/2026"
+              }
+            ]
+          },
+          "snippet": "Thank you for the update!"
+        }
+      ]
+    },
+    {
       "to": "test@example.com",
       "subject": "Veloce Test",
       "body": "This is a test notification.",

@@ -11,6 +11,16 @@ const redis = new Redis({
 })
 
 export async function proxy(req: NextRequest) {
+  console.log("PROXY REQUEST:", {
+    url: req.url,
+    phase: process.env.NEXT_PHASE,
+    headers: Array.from(req.headers.entries())
+  })
+
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return NextResponse.next()
+  }
+
   const { nextUrl } = req
   const { pathname } = nextUrl
 
@@ -54,7 +64,7 @@ export async function proxy(req: NextRequest) {
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register")
   if (isAuthRoute) {
     if (isLoggedIn) {
-      const response = NextResponse.redirect(new URL("/app/mail", nextUrl))
+      const response = NextResponse.redirect(new URL("/app/chat", nextUrl))
       if (!req.cookies.has("veloce_logged_in")) {
         response.cookies.set("veloce_logged_in", "true", {
           httpOnly: false,
@@ -90,7 +100,7 @@ export async function proxy(req: NextRequest) {
     } else {
       // If onboarding is completed, redirect away from /app/onboarding to /app/mail
       if (pathname === "/app/onboarding") {
-        response = NextResponse.redirect(new URL("/app/mail", nextUrl))
+        response = NextResponse.redirect(new URL("/app/chat", nextUrl))
       } else {
         response = NextResponse.next()
       }
@@ -123,6 +133,12 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    {
+      source: "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
   ],
 }

@@ -1,6 +1,7 @@
 import { corsair } from "@/lib/corsair"
 import { processOAuthCallback } from "corsair/oauth"
 import { NextRequest, NextResponse } from "next/server"
+import { isDynamicUsageError } from "@/lib/auth/jwt"
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,6 +23,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.redirect(new URL("/app/onboarding", req.url))
   } catch (error: any) {
+    if (isDynamicUsageError(error)) {
+      throw error
+    }
     console.error("[corsair/callback] Error:", error)
     return NextResponse.json({ error: error.message || "OAuth callback processing failed" }, { status: 500 })
   }

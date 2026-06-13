@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
-import { chatWithGeminiStream } from "@/services/agent.service"
+import { runAgentCoPilotStream } from "@/services/agent.service"
 import { db } from "@/db"
 import { agent_messages } from "@/db/schema"
 
-/**
- * Handle conversational chat commands for the workspace command bar.
- */
 export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser(req)
@@ -15,25 +12,32 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { message, context } = body
+    const { message, threadId: reqThreadId, threadTitle: reqThreadTitle } = body
 
     if (!message || message.trim().length === 0) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 })
     }
 
     const userId = user.id
+    const threadId = reqThreadId || crypto.randomUUID()
+    const threadTitle = reqThreadTitle || (message.slice(0, 40) + (message.length > 40 ? "..." : ""))
 
-    // 1. Log user message to the database
+    // 1. Log user message to the database under this thread
     await db.insert(agent_messages).values({
       userId,
+      threadId,
+      threadTitle,
       role: "user",
       content: message,
     })
 
-    // 2. Start streaming with Gemini
+    // 2. Start streaming with the co-pilot agent
+    const rawStream = await runAgentCoPilotStream(userId, message)
+    
+    // We intercept the stream to capture the final assistant response text and save it to the DB
     const encoder = new TextEncoder()
-    const rawStream = await chatWithGeminiStream(userId, message, context)
-
+    const decoder = new TextDecoder()
+    
     const sseStream = new ReadableStream({
       async start(controller) {
         const reader = rawStream.getReader()
@@ -43,12 +47,26 @@ export async function POST(req: NextRequest) {
         try {
           while (true) {
             const { done, value } = await reader.read()
-            if (done) {
-              break
-            }
+            if (done) break
+
             if (value) {
-              aggregatedResponse += value
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: value })}\n\n`))
+              // Forward the raw SSE chunk to the client
+              controller.enqueue(value as any)
+
+              // Parse and aggregate text chunks
+              const chunkStr = typeof value === "string" ? value : decoder.decode(value as any)
+              const lines = chunkStr.split("\n")
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (trimmed.startsWith("data:")) {
+                  try {
+                    const parsed = JSON.parse(trimmed.slice(5).trim())
+                    if (parsed.text) {
+                      aggregatedResponse += parsed.text
+                    }
+                  } catch {}
+                }
+              }
             }
           }
 
@@ -56,18 +74,22 @@ export async function POST(req: NextRequest) {
             hasSaved = true
             await db.insert(agent_messages).values({
               userId,
+              threadId,
+              threadTitle,
               role: "assistant",
               content: aggregatedResponse,
             })
           }
         } catch (err) {
-          console.error("[api/agent] Streaming error:", err)
+          console.error("[api/agent] Streaming interception error:", err)
           controller.error(err)
         } finally {
           if (!hasSaved && aggregatedResponse) {
             try {
               await db.insert(agent_messages).values({
                 userId,
+                threadId,
+                threadTitle,
                 role: "assistant",
                 content: aggregatedResponse,
               })
@@ -96,4 +118,3 @@ export async function POST(req: NextRequest) {
     )
   }
 }
-

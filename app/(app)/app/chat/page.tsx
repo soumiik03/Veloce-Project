@@ -1,16 +1,16 @@
 export const unstable_instant = { prefetch: "static", unstable_disableValidation: true }
 
 import { Suspense } from "react"
-import { MailPageClient } from "./mail-page-client"
+import { ChatPageClient } from "./chat-page-client"
 
-export default async function MailPage() {
+export default async function ChatPage() {
   return (
     <Suspense fallback={
       <div className="flex-1 flex items-center justify-center bg-[#0d0d0d] text-[#888888] font-mono text-[13px] h-screen">
-        LOADING MAIL TELEMETRY...
+        LOADING CHAT WORKSPACE...
       </div>
     }>
-      <MailPageClient />
+      <ChatPageClient />
     </Suspense>
   )
 }

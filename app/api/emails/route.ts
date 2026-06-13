@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { verifyAccessToken, extractTokenFromHeader } from "@/lib/auth/jwt"
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
 import { getSimulatedEmails } from "@/lib/simulated-data"
+import { corsair } from "@/lib/corsair"
 
 export async function GET(req: NextRequest) {
   let userId = ""
@@ -68,5 +69,76 @@ export async function GET(req: NextRequest) {
       }
     }
     return NextResponse.json({ error: error.message || "Failed to list emails" }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  let userId = ""
+  try {
+    const authHeader = req.headers.get("Authorization")
+    let token = extractTokenFromHeader(authHeader)
+    if (!token) {
+      token = req.cookies.get("accessToken")?.value || null
+    }
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const payload = verifyAccessToken(token)
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
+    }
+    userId = payload.userId
+
+    const body = await req.json()
+    const { to, cc, bcc, subject, content } = body
+
+    if (!to || !subject || !content) {
+      return NextResponse.json({ error: "Missing required fields (to, subject, content)" }, { status: 400 })
+    }
+
+    try {
+      const tenant = corsair.withTenant(userId)
+      
+      const buildEmailRaw = () => {
+        const headers = [`To: ${to}`]
+        if (cc) headers.push(`Cc: ${cc}`)
+        if (bcc) headers.push(`Bcc: ${bcc}`)
+        headers.push(`Subject: ${subject}`)
+        headers.push("MIME-Version: 1.0")
+        headers.push('Content-Type: text/plain; charset="UTF-8"')
+        headers.push("")
+        headers.push(content)
+        
+        return Buffer.from(headers.join("\r\n"))
+          .toString("base64")
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/g, "")
+      }
+
+      await tenant.gmail.api.messages.send({
+        userId: "me",
+        raw: buildEmailRaw(),
+      })
+
+      return NextResponse.json({ success: true }, { status: 200 })
+    } catch (apiErr: any) {
+      console.warn("[api/emails] Google API send failed, using simulated mock:", apiErr.message)
+      // Save simulated email to mock DB
+      const { saveSimulatedEmail } = require("@/lib/simulated-data")
+      saveSimulatedEmail(userId, {
+        to,
+        from: "me",
+        subject,
+        date: new Date().toLocaleDateString(),
+        snippet: content,
+      })
+      return NextResponse.json({ success: true, simulated: true }, { status: 200 })
+    }
+  } catch (error: any) {
+    console.error("[api/emails] POST send Error:", error)
+    return NextResponse.json({ error: error.message || "Failed to send email" }, { status: 500 })
   }
 }

@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth"
 import { corsair } from "@/lib/corsair"
 import { NextRequest, NextResponse } from "next/server"
+import { isDynamicUsageError } from "@/lib/auth/jwt"
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,6 +36,9 @@ export async function GET(req: NextRequest) {
       connected: gmailConnected && calendarConnected,
     })
   } catch (error: any) {
+    if (isDynamicUsageError(error)) {
+      throw error
+    }
     console.error("[corsair/status] Error:", error)
     return NextResponse.json({ error: error.message || "Failed to check connection status" }, { status: 500 })
   }

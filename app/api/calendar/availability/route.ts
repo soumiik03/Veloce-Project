@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAccessToken, extractTokenFromHeader } from "@/lib/auth/jwt"
+import { verifyAccessToken, extractTokenFromHeader, isDynamicUsageError } from "@/lib/auth/jwt"
 import { getAvailability } from "@/services/calendar/event-service"
 import { recommendAlternativeSlot } from "@/services/meeting/recommend-slot"
 
@@ -38,6 +38,9 @@ export async function GET(req: NextRequest) {
       recommendedSlot,
     }, { status: 200 })
   } catch (error: any) {
+    if (isDynamicUsageError(error)) {
+      throw error
+    }
     console.error("[calendar/availability] GET Error:", error)
     return NextResponse.json({ error: error.message || "Failed to fetch availability" }, { status: 500 })
   }

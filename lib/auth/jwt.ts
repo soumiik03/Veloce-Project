@@ -172,3 +172,18 @@ function verifySync(token: string, secret: string): any {
     return null
   }
 }
+
+export function isDynamicUsageError(err: any): boolean {
+  if (typeof err !== 'object' || err === null) return false
+  return (
+    (typeof err.digest === 'string' && (
+      err.digest.startsWith('NEXT_') ||
+      err.digest === 'DYNAMIC_SERVER_USAGE' ||
+      err.digest === 'HANGING_PROMISE_REJECTION'
+    )) ||
+    (typeof err.message === 'string' && (
+      err.message.includes('bail out of prerendering') ||
+      err.message.includes('During prerendering')
+    ))
+  )
+}

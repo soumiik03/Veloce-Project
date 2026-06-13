@@ -2,6 +2,7 @@ import { getSessionUser } from "@/lib/auth"
 import { corsair } from "@/lib/corsair"
 import { generateOAuthUrl } from "corsair/oauth"
 import { NextRequest, NextResponse } from "next/server"
+import { isDynamicUsageError } from "@/lib/auth/jwt"
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
     }
 
     const tenantId = user.id
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/corsair`
 
     const { url } = await generateOAuthUrl(corsair, pluginId, {
       tenantId,
@@ -27,6 +28,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ url })
   } catch (error: any) {
+    if (isDynamicUsageError(error)) {
+      throw error
+    }
     console.error("[corsair/connect] Error:", error)
     return NextResponse.json({ error: error.message || "Failed to generate connect URL" }, { status: 500 })
   }
