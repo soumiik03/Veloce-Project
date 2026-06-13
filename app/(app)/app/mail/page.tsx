@@ -260,10 +260,10 @@ export default function MailPage() {
         if (data.recommendedSlot) {
           setTempScheduledEvent({
             id: "temp-event-new",
-            summary: "Veloce Suggestion: Staged",
+            summary: data.detection?.subject || "Veloce Suggestion: Staged",
             start: { dateTime: data.recommendedSlot.start },
             end: { dateTime: data.recommendedSlot.end },
-            attendees: [],
+            attendees: data.detection?.attendees?.map((email: string) => ({ email })) || [],
             status: "confirmed"
           })
         }
@@ -278,30 +278,110 @@ export default function MailPage() {
   }
 
   // Handle confirming draft/update
-  const commitSchedule = () => {
-    setLogs(prev => [...prev, "[SUCCESS] Calendar event synchronized.", "[SUCCESS] Email reply sent."])
+  const commitSchedule = async () => {
+    if (!orchestrationResult) return
+    setLogs(prev => [...prev, "[COMMITING] Dispatched draft reply email via Google API...", "[COMMITING] Finalizing Calendar Sync..."])
     
-    // Finalize mock event placement: remove old, push new
-    if (tempScheduledEvent) {
-      setEvents(prev => [
-        ...prev.filter(e => e.id !== "mock-event-1"), // Remove old conflict event
+    if (selectedThreadId && selectedThreadId.startsWith("mock-")) {
+      // Finalize mock event placement
+      if (tempScheduledEvent) {
+        setEvents(prev => [
+          ...prev.filter(e => e.id !== "mock-event-1"), // Remove old conflict event
+          {
+            ...tempScheduledEvent,
+            summary: "Core System Review Sync (Updated)"
+          }
+        ])
+        setTempScheduledEvent(null)
+      }
+
+      setAssistantMessages(prev => [
+        ...prev,
         {
-          ...tempScheduledEvent,
-          summary: "Core System Review Sync (Updated)"
+          sender: "veloce",
+          text: "Sync finalized. I have updated Google Calendar and successfully dispatched the Gmail reply.",
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         }
       ])
-      setTempScheduledEvent(null)
+      setOrchestrationResult(null)
+      return
     }
 
-    setAssistantMessages(prev => [
-      ...prev,
-      {
-        sender: "veloce",
-        text: "Sync finalized. I have updated Google Calendar and successfully dispatched the Gmail reply.",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    try {
+      const cookieVal = document.cookie
+        .split("; ")
+        .find(row => row.startsWith("accessToken="))
+        ?.split("=")[1]
+
+      if (orchestrationResult.draft?.id) {
+        const res = await fetch("/api/emails/drafts/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${cookieVal || ""}`
+          },
+          body: JSON.stringify({ draftId: orchestrationResult.draft.id })
+        })
+        if (res.ok) {
+          setLogs((prev) => [...prev, "[SUCCESS] Gmail reply draft sent."])
+          
+          setAssistantMessages((prev) => [
+            ...prev,
+            {
+              sender: "veloce",
+              text: "Successfully sent the reply email: \"" + (orchestrationResult.draft.message || "") + "\"",
+              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            }
+          ])
+        } else {
+          const data = await res.json()
+          setLogs((prev) => [...prev, `[ERROR] Failed to send email draft: ${data.error || "Unknown error"}`])
+        }
       }
-    ])
-    setOrchestrationResult(null)
+    } catch (err: any) {
+      setLogs((prev) => [...prev, `[ERROR] Connection failed: ${err.message || err}`])
+    } finally {
+      setTempScheduledEvent(null)
+      setOrchestrationResult(null)
+    }
+  }
+
+  // Discard draft and staged event
+  const cancelSchedule = async () => {
+    if (!orchestrationResult) return
+    setLogs((prev) => [...prev, "[CANCELLING] Discarding draft email...", "[CANCELLING] Discarding staged event..."])
+
+    try {
+      const cookieVal = document.cookie
+        .split("; ")
+        .find(row => row.startsWith("accessToken="))
+        ?.split("=")[1]
+
+      if (orchestrationResult.draft?.id) {
+        await fetch(`/api/emails/drafts/${orchestrationResult.draft.id}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${cookieVal || ""}`
+          }
+        })
+      }
+
+      if (orchestrationResult.calendarEvent?.id) {
+        await fetch(`/api/calendar/events/${orchestrationResult.calendarEvent.id}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${cookieVal || ""}`
+          }
+        })
+      }
+
+      setLogs((prev) => [...prev, "[SUCCESS] Discarded staged changes."])
+    } catch (err: any) {
+      setLogs((prev) => [...prev, `[ERROR] Failed to discard changes: ${err.message}`])
+    } finally {
+      setTempScheduledEvent(null)
+      setOrchestrationResult(null)
+    }
   }
 
   // Handle command execution inside the bottom command bar
@@ -389,18 +469,83 @@ export default function MailPage() {
               }
             })
           })
-          const data = await res.json()
-          if (res.ok) {
-            setAssistantMessages((prev) => [
-              ...prev,
-              {
-                sender: "veloce",
-                text: data.response,
-                time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              }
-            ])
-          } else {
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
             throw new Error(data.error || "Failed to query agent")
+          }
+
+          const reader = res.body?.getReader()
+          if (!reader) {
+            throw new Error("No response reader available")
+          }
+
+          // Add a new empty slot for the assistant message
+          setAssistantMessages((prev) => [
+            ...prev,
+            {
+              sender: "veloce",
+              text: "",
+              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            }
+          ])
+
+          const decoder = new TextDecoder()
+          let accumulatedText = ""
+          let buffer = ""
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split("\n")
+            buffer = lines.pop() || ""
+
+            for (const line of lines) {
+              const trimmed = line.trim()
+              if (!trimmed.startsWith("data:")) continue
+
+              const jsonStr = trimmed.slice(5).trim()
+              try {
+                const parsed = JSON.parse(jsonStr)
+                if (parsed.text) {
+                  accumulatedText += parsed.text
+                  setAssistantMessages((prev) => {
+                    const next = [...prev]
+                    if (next.length > 0) {
+                      next[next.length - 1] = {
+                        ...next[next.length - 1],
+                        text: accumulatedText
+                      }
+                    }
+                    return next
+                  })
+                }
+              } catch (e) {
+                console.warn("Failed to parse client SSE chunk:", jsonStr, e)
+              }
+            }
+          }
+
+          if (buffer.trim().startsWith("data:")) {
+            const jsonStr = buffer.trim().slice(5).trim()
+            try {
+              const parsed = JSON.parse(jsonStr)
+              if (parsed.text) {
+                accumulatedText += parsed.text
+                setAssistantMessages((prev) => {
+                  const next = [...prev]
+                  if (next.length > 0) {
+                    next[next.length - 1] = {
+                      ...next[next.length - 1],
+                      text: accumulatedText
+                    }
+                  }
+                  return next
+                })
+              }
+            } catch {}
           }
         } catch (err: any) {
           setAssistantMessages((prev) => [
@@ -485,7 +630,7 @@ export default function MailPage() {
           {/* Chat / Detail Scroll Area */}
           <div className="flex-1 overflow-y-auto space-y-5 pr-1 pb-4">
             
-            {!selectedThreadId ? (
+            {(!selectedThreadId && assistantMessages.length === 0) ? (
               /* Splash Welcome screen if no thread is active */
               <div className="h-full flex flex-col justify-center items-center text-center p-6 select-none gap-6">
                 <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 font-black text-xl animate-float">
@@ -520,41 +665,45 @@ export default function MailPage() {
               <div className="space-y-4">
                 
                 {/* Active Thread Header */}
-                <div className="border-b border-zinc-900 pb-3 mb-2 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-zinc-100 truncate max-w-sm">
-                      {threadDetail?.messages?.[0]?.payload?.headers?.find((h: any) => h.name.toLowerCase() === "subject")?.value || "Conversation Feed"}
-                    </h3>
-                    <span className="text-[9px] font-mono text-zinc-550 block mt-0.5">
-                      ACTIVE CONTEXT DETECTED
-                    </span>
+                {selectedThreadId && (
+                  <div className="border-b border-zinc-900 pb-3 mb-2 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100 truncate max-w-sm">
+                        {threadDetail?.messages?.[0]?.payload?.headers?.find((h: any) => h.name.toLowerCase() === "subject")?.value || "Conversation Feed"}
+                      </h3>
+                      <span className="text-[9px] font-mono text-zinc-550 block mt-0.5">
+                        ACTIVE CONTEXT DETECTED
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <StatusBadge type="success">Connected</StatusBadge>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <StatusBadge type="success">Connected</StatusBadge>
-                  </div>
-                </div>
+                )}
 
                 {/* Email Messages Timeline */}
-                {loadingDetail ? (
-                  <div className="py-24 text-center text-xs text-zinc-500 font-mono animate-pulse">
-                    PARSING CONVERSATION TELEMETRY...
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {threadDetail?.messages?.map((msg: any, i: number) => {
-                      const fromHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "from")?.value
-                      const dateHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "date")?.value
-                      return (
-                        <div key={i} className="p-4 bg-zinc-950/50 border border-zinc-900 rounded-xl">
-                          <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono mb-2">
-                            <span className="font-semibold text-zinc-400">{fromHeader}</span>
-                            <span>{dateHeader}</span>
+                {selectedThreadId && (
+                  loadingDetail ? (
+                    <div className="py-24 text-center text-xs text-zinc-500 font-mono animate-pulse">
+                      PARSING CONVERSATION TELEMETRY...
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {threadDetail?.messages?.map((msg: any, i: number) => {
+                        const fromHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "from")?.value
+                        const dateHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "date")?.value
+                        return (
+                          <div key={i} className="p-4 bg-zinc-950/50 border border-zinc-900 rounded-xl">
+                            <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono mb-2">
+                              <span className="font-semibold text-zinc-400">{fromHeader}</span>
+                              <span>{dateHeader}</span>
+                            </div>
+                            <p className="text-xs text-zinc-300 font-light leading-relaxed">{msg.snippet}</p>
                           </div>
-                          <p className="text-xs text-zinc-300 font-light leading-relaxed">{msg.snippet}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
+                        )
+                      })}
+                    </div>
+                  )
                 )}
 
                 {/* Orchestration Log Feed */}
@@ -596,7 +745,7 @@ export default function MailPage() {
                       <span>Actions Matrix Ready</span>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setOrchestrationResult(null)}
+                          onClick={cancelSchedule}
                           className="px-3 py-1.5 border border-zinc-850 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg text-[10px] font-mono cursor-pointer transition"
                         >
                           Cancel

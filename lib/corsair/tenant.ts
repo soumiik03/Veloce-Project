@@ -1,3 +1,4 @@
+import { setupCorsair } from "corsair/setup"
 import { corsair } from "./index"
 
 export async function provisionTenant(userId: string): Promise<void> {
@@ -5,7 +6,26 @@ export async function provisionTenant(userId: string): Promise<void> {
     throw new Error("userId is required for tenant provisioning")
   }
 
-  await Promise.resolve(corsair)
+  const credentials = {
+    gmail: {
+      client_id: process.env.GOOGLE_CLIENT_ID || "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+    },
+    googlecalendar: {
+      client_id: process.env.GOOGLE_CLIENT_ID || "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }
+  }
+
+  // 1. Setup global integration-level credentials first (omit tenantId)
+  await setupCorsair(corsair, {
+    credentials,
+  })
+
+  // 2. Setup account-level rows for the tenant (without credentials)
+  await setupCorsair(corsair, {
+    tenantId: userId,
+  })
 }
 
 export function getTenant(userId: string) {

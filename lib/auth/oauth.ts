@@ -79,9 +79,10 @@ export async function upsertGoogleAccount(
       throw new Error("This Google email is already associated with another account")
     }
 
-    if (existingUserByEmail.length && linkingUserId) {
+    if (existingUserByEmail.length) {
+      const targetUserId = linkingUserId || existingUserByEmail[0].id
       await tx.insert(accounts).values({
-        userId: linkingUserId,
+        userId: targetUserId,
         type: "oauth",
         provider: "google",
         providerAccountId: googleUserId,
@@ -94,9 +95,9 @@ export async function upsertGoogleAccount(
 
       return {
         user: {
-          id: linkingUserId,
+          id: targetUserId,
           email: existingUserByEmail[0].email,
-          name: existingUserByEmail[0].name,
+          name: existingUserByEmail[0].name || googleName,
         },
         isNewUser: false,
       }

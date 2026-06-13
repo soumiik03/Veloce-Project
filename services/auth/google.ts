@@ -3,6 +3,7 @@ import { users } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { upsertGoogleAccount, type GoogleOAuthProfile } from '@/lib/auth/oauth'
 import { provisionTenant } from '@/lib/corsair/tenant'
+import { corsair } from '@/lib/corsair'
 import { createAccessToken, createRefreshToken, getRefreshTokenExpiryMs } from '@/lib/auth/jwt'
 import { refreshTokens } from '@/db/schema'
 
@@ -26,9 +27,35 @@ export async function handleGoogleOAuth(profile: GoogleOAuthProfile): Promise<Go
   // Atomic upsert: creates user or links account
   const { user: oauthUser, isNewUser } = await upsertGoogleAccount(profile)
 
-  // Provision Corsair tenant for new users
-  if (isNewUser) {
-    await provisionTenant(oauthUser.id)
+  // Always ensure Corsair tenant is provisioned (idempotent)
+  await provisionTenant(oauthUser.id)
+
+  // Automatically link Google OAuth tokens into Corsair Gmail & Google Calendar integrations
+  const tenant = corsair.withTenant(oauthUser.id)
+  try {
+    await (tenant.gmail as any).keys.set_access_token(profile.accessToken)
+    if (profile.refreshToken) {
+      await (tenant.gmail as any).keys.set_refresh_token(profile.refreshToken)
+    }
+    if (profile.accessTokenExpiresAt) {
+      const expiresAtSecStr = String(Math.floor(profile.accessTokenExpiresAt.getTime() / 1000))
+      await (tenant.gmail as any).keys.set_expires_at(expiresAtSecStr)
+    }
+  } catch (err) {
+    console.error("Failed to auto-link Gmail keys in Corsair:", err)
+  }
+
+  try {
+    await (tenant.googlecalendar as any).keys.set_access_token(profile.accessToken)
+    if (profile.refreshToken) {
+      await (tenant.googlecalendar as any).keys.set_refresh_token(profile.refreshToken)
+    }
+    if (profile.accessTokenExpiresAt) {
+      const expiresAtSecStr = String(Math.floor(profile.accessTokenExpiresAt.getTime() / 1000))
+      await (tenant.googlecalendar as any).keys.set_expires_at(expiresAtSecStr)
+    }
+  } catch (err) {
+    console.error("Failed to auto-link Google Calendar keys in Corsair:", err)
   }
 
   // Get user to return updated data

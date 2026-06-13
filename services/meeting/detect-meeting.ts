@@ -37,6 +37,7 @@ export async function detectMeetingIntentFromThread(userId: string, threadId: st
 
   const subject = getHeader("subject") || latestMessage.snippet || ""
   const from = getHeader("from") || ""
+  const messageId = getHeader("message-id") || null
   
   // Extract full decoded body or fall back to snippet
   const bodyText = getMessageBody(latestMessage.payload) || latestMessage.snippet || ""
@@ -65,5 +66,6 @@ export async function detectMeetingIntentFromThread(userId: string, threadId: st
     intent,
     threadSubject: subject,
     lastMessageFrom: from,
+    messageId,
   }
 }

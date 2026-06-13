@@ -12,7 +12,10 @@ export default function AppLayout({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const isAuth = document.cookie.split("; ").some(row => row.trim().startsWith("veloce_logged_in="))
+    const isAuth = document.cookie.split("; ").some(row => {
+      const trimmed = row.trim()
+      return trimmed.startsWith("veloce_logged_in=") || trimmed.includes("session-token=")
+    })
     if (!isAuth) {
       window.location.href = "/"
     } else {
@@ -78,9 +81,9 @@ export default function AppLayout({
           {/* Navigation */}
           <nav className="flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-x-visible">
             <a
-              href="/workspace"
+              href="/app/workspace"
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-mono tracking-wider transition-all duration-300 ${
-                pathname === "/workspace"
+                pathname === "/app/workspace"
                   ? "bg-indigo-600/15 text-indigo-200 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.1)]"
                   : "text-zinc-400 hover:text-zinc-100 hover:bg-[#0c122a]/40 border border-transparent"
               }`}
@@ -92,9 +95,9 @@ export default function AppLayout({
             </a>
 
             <a
-              href="/mail"
+              href="/app/mail"
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-mono tracking-wider transition-all duration-300 ${
-                pathname === "/mail"
+                pathname === "/app/mail"
                   ? "bg-indigo-600/15 text-indigo-200 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.1)]"
                   : "text-zinc-400 hover:text-zinc-100 hover:bg-[#0c122a]/40 border border-transparent"
               }`}
@@ -106,9 +109,9 @@ export default function AppLayout({
             </a>
 
             <a
-              href="/calender"
+              href="/app/calender"
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-mono tracking-wider transition-all duration-300 ${
-                pathname === "/calender"
+                pathname === "/app/calender"
                   ? "bg-indigo-600/15 text-indigo-200 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.1)]"
                   : "text-zinc-400 hover:text-zinc-100 hover:bg-[#0c122a]/40 border border-transparent"
               }`}
@@ -120,9 +123,9 @@ export default function AppLayout({
             </a>
 
             <a
-              href="/settings"
+              href="/app/settings"
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-mono tracking-wider transition-all duration-300 ${
-                pathname === "/settings"
+                pathname === "/app/settings"
                   ? "bg-indigo-600/15 text-indigo-200 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.1)]"
                   : "text-zinc-400 hover:text-zinc-100 hover:bg-[#0c122a]/40 border border-transparent"
               }`}

@@ -4,7 +4,7 @@ import { StepperWizard } from "@/components/features/onboarding/stepper-wizard"
 
 export default function OnboardingPage() {
   const handleComplete = () => {
-    window.location.href = "/mail"
+    window.location.href = "/app/mail"
   }
 
   return (

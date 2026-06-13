@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { handleGoogleOAuth } from "@/services/auth/google"
 import { type GoogleOAuthProfile } from "@/lib/auth/oauth"
 import { cookies } from "next/headers"
+import { corsair } from "@/lib/corsair"
+import { processOAuthCallback } from "corsair/oauth"
 
 /**
  * Google OAuth callback handler
@@ -11,12 +13,28 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const code = searchParams.get("code")
+    const state = searchParams.get("state")
 
     if (!code) {
       return NextResponse.json(
         { error: "Authorization code not provided" },
         { status: 400 }
       )
+    }
+
+    // Check if this is a Corsair OAuth flow callback (state is not our static_state)
+    if (state && state !== "static_state") {
+      try {
+        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
+        await processOAuthCallback(corsair, {
+          code,
+          state,
+          redirectUri,
+        })
+        return NextResponse.redirect(new URL("/app/onboarding", req.url))
+      } catch (err) {
+        console.warn("Not a Corsair flow or state processing failed, falling back to normal Google login:", err)
+      }
     }
 
     const clientID = process.env.GOOGLE_CLIENT_ID
@@ -106,7 +124,7 @@ export async function GET(req: NextRequest) {
     })
 
     // Redirect user to the workspace dashboard
-    return NextResponse.redirect(new URL("/workspace", req.url))
+    return NextResponse.redirect(new URL("/app/workspace", req.url))
   } catch (error: any) {
     console.error("[oauth/google] Error:", error)
     return NextResponse.json(

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
@@ -9,11 +9,69 @@ interface StepperWizardProps {
 export function StepperWizard({ onComplete }: StepperWizardProps) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [gmailConnected, setGmailConnected] = useState(false)
+  const [calendarConnected, setCalendarConnected] = useState(false)
   const [timezone, setTimezone] = useState("UTC-5 (EST)")
   const [buffer, setBuffer] = useState("15")
+  const [skipped, setSkipped] = useState(false)
 
-  const handleNext = () => {
+  // Status check & polling
+  useEffect(() => {
+    let active = true
+    const checkStatus = async () => {
+      try {
+        const res = await fetch("/api/auth/corsair/status")
+        if (!res.ok) return
+        const data = await res.json()
+        if (active) {
+          setGmailConnected(data.gmail)
+          setCalendarConnected(data.googlecalendar)
+        }
+      } catch (err) {
+        console.error("Failed to fetch connection status:", err)
+      }
+    }
+
+    checkStatus()
+
+    const interval = setInterval(() => {
+      if (!gmailConnected || !calendarConnected) {
+        checkStatus()
+      }
+    }, 3000)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [gmailConnected, calendarConnected])
+
+  const handleConnect = async (plugin: "gmail" | "googlecalendar") => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/auth/corsair/connect?plugin=${plugin}`)
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        alert("Failed to generate connect link")
+        setLoading(false)
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error starting OAuth connection flow")
+      setLoading(false)
+    }
+  }
+
+  const handleNext = async () => {
     if (step === 3) {
+      setLoading(true)
+      try {
+        await fetch("/api/auth/corsair/complete", { method: "POST" })
+      } catch (err) {
+        console.error("Failed to mark onboarding complete:", err)
+      }
       onComplete()
       return
     }
@@ -23,6 +81,8 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
       setLoading(false)
     }, 1000)
   }
+
+  const canProceed = step !== 1 || gmailConnected || calendarConnected || skipped
 
   return (
     <Card className="w-full max-w-xl p-8 relative overflow-hidden backdrop-blur-md">
@@ -56,23 +116,75 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
           <div>
             <h3 className="text-base font-medium text-zinc-100">Step 1: Workspace Authorization</h3>
             <p className="text-xs text-zinc-400 font-light mt-1.5 leading-relaxed">
-              Veloce connects securely to Gmail and Calendar. Click below to establish a secure oauth connection.
+              Veloce connects securely to Gmail and Calendar. Link your accounts below via Corsair OAuth.
             </p>
           </div>
-          <div className="flex items-center justify-between p-4 bg-[#151912] border border-zinc-800 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-xs">
-                G
+
+          <div className="space-y-3">
+            {/* Gmail Connector */}
+            <div className="flex items-center justify-between p-4 bg-[#151912]/20 border border-zinc-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-xs font-bold">
+                  M
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-semibold text-zinc-300 block">Gmail Plugin</span>
+                  <span className="text-[10px] text-zinc-500 font-light">Drafting and sending email replies</span>
+                </div>
               </div>
-              <div className="text-left">
-                <span className="text-xs font-semibold text-zinc-300 block">Google OAuth Provider</span>
-                <span className="text-[10px] text-zinc-500 font-light">Authorizing Gmail and Calendar</span>
-              </div>
+              {gmailConnected ? (
+                <span className="text-[9px] font-mono text-green-400 border border-green-500/20 px-2 py-0.5 bg-green-500/10 rounded">
+                  CONNECTED
+                </span>
+              ) : (
+                <Button
+                  onClick={() => handleConnect("gmail")}
+                  disabled={loading}
+                  className="text-[10px] py-1 h-auto font-mono"
+                >
+                  CONNECT
+                </Button>
+              )}
             </div>
-            <span className="text-[9px] font-mono text-green-400 border border-green-500/20 px-2 py-0.5 bg-green-500/10 rounded">
-              READY
-            </span>
+
+            {/* Calendar Connector */}
+            <div className="flex items-center justify-between p-4 bg-[#151912]/20 border border-zinc-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-xs font-bold">
+                  C
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-semibold text-zinc-300 block">Google Calendar</span>
+                  <span className="text-[10px] text-zinc-500 font-light">Reading and updating schedules</span>
+                </div>
+              </div>
+              {calendarConnected ? (
+                <span className="text-[9px] font-mono text-green-400 border border-green-500/20 px-2 py-0.5 bg-green-500/10 rounded">
+                  CONNECTED
+                </span>
+              ) : (
+                <Button
+                  onClick={() => handleConnect("googlecalendar")}
+                  disabled={loading}
+                  className="text-[10px] py-1 h-auto font-mono"
+                >
+                  CONNECT
+                </Button>
+              )}
+            </div>
           </div>
+
+          {!gmailConnected || !calendarConnected ? (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => setSkipped(true)}
+                className="text-[10px] text-zinc-500 hover:text-rose-450 transition-colors font-mono underline cursor-pointer"
+              >
+                Skip integrations (Not Recommended)
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -90,7 +202,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
               <select
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                className="w-full bg-[#151912] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs text-zinc-300 focus:outline-none"
+                className="w-full bg-[#151912]/40 border border-zinc-800 rounded-lg px-3 py-2.5 text-xs text-zinc-300 focus:outline-none"
               >
                 <option value="UTC-5 (EST)">UTC-5 (EST)</option>
                 <option value="UTC+0 (GMT)">UTC+0 (GMT)</option>
@@ -102,7 +214,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
               <select
                 value={buffer}
                 onChange={(e) => setBuffer(e.target.value)}
-                className="w-full bg-[#151912] border border-zinc-800 rounded-lg px-3 py-2.5 text-xs text-zinc-300 focus:outline-none"
+                className="w-full bg-[#151912]/40 border border-zinc-800 rounded-lg px-3 py-2.5 text-xs text-zinc-300 focus:outline-none"
               >
                 <option value="15">15 Minutes</option>
                 <option value="30">30 Minutes</option>
@@ -121,7 +233,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
               Verify database syncing and test connectivity logs.
             </p>
           </div>
-          <div className="bg-[#151912] border border-zinc-800 rounded-lg p-3 text-left font-mono text-[10px] text-zinc-450 space-y-1">
+          <div className="bg-[#151912]/30 border border-zinc-800 rounded-lg p-3 text-left font-mono text-[10px] text-zinc-400 space-y-1">
             <div className="text-zinc-500">[SYSTEM] Launching engine sync...</div>
             <div className="text-indigo-400">[INFO] Synced accounts successfully.</div>
             <div className="text-green-400">[SUCCESS] Calibration completed. Ready.</div>
@@ -140,6 +252,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
         </Button>
         <Button
           onClick={handleNext}
+          disabled={!canProceed}
           loading={loading}
           className="cursor-pointer"
         >

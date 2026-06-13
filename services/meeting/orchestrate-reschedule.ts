@@ -2,6 +2,7 @@ import { detectMeetingIntentFromThread } from "./detect-meeting"
 import { recommendAlternativeSlot } from "./recommend-slot"
 import { createNegotiationDraft } from "./create-draft"
 import { createGoogleCalendarEvent, updateGoogleCalendarEvent } from "@/services/calendar/google-calendar"
+import { corsair } from "@/lib/corsair"
 
 export type OrchestrateInput = {
   userId: string
@@ -16,7 +17,7 @@ export type OrchestrateInput = {
 export async function orchestrateReschedule(input: OrchestrateInput) {
   const { userId, threadId, eventId, slotMinutes = 30, calendarId = "primary" } = input
 
-  const { intent, threadSubject, lastMessageFrom } = await detectMeetingIntentFromThread(userId, threadId)
+  const { intent, threadSubject, lastMessageFrom, messageId } = await detectMeetingIntentFromThread(userId, threadId)
 
   if (!intent.isMeetingRelated) {
     return {
@@ -39,12 +40,50 @@ export async function orchestrateReschedule(input: OrchestrateInput) {
     slotMinutes,
   })
 
+  // Try to search calendar for an event matching the subject if eventId is not provided
+  let targetEventId = eventId
+  if (!targetEventId) {
+    try {
+      const searchSubject = intent.subject || threadSubject || ""
+      const cleanSubject = searchSubject.replace(/^Re:\s*/i, "").trim()
+      
+      if (cleanSubject) {
+        const tenant = corsair.withTenant(userId)
+        const now = new Date()
+        const futureLimit = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        
+        const searchResult = await tenant.googlecalendar.api.events.getMany({
+          calendarId,
+          q: cleanSubject,
+          timeMin: now.toISOString(),
+          timeMax: futureLimit.toISOString(),
+          singleEvents: true,
+        })
+        
+        if (searchResult.items && searchResult.items.length > 0) {
+          const matchedEvent = searchResult.items.find(
+            (evt: any) => evt.summary?.toLowerCase() === cleanSubject.toLowerCase()
+          ) || searchResult.items[0]
+          
+          if (matchedEvent && matchedEvent.id) {
+            targetEventId = matchedEvent.id
+            console.log(`[orchestrateReschedule] Automatically matched subject "${cleanSubject}" to event ID: ${targetEventId}`)
+          }
+        }
+      }
+    } catch (searchErr) {
+      console.warn("[orchestrateReschedule] Failed to automatically match calendar event by subject:", searchErr)
+    }
+  }
+
   if (!slot) {
     const draft = await createNegotiationDraft({
       userId,
       to: lastMessageFrom,
       subject: threadSubject,
       slot: null,
+      threadId,
+      messageId,
     })
 
     return {
@@ -65,13 +104,15 @@ export async function orchestrateReschedule(input: OrchestrateInput) {
     to: lastMessageFrom,
     subject: threadSubject,
     slot,
+    threadId,
+    messageId,
   })
 
   let calendarEventResult = null
-  if (eventId) {
+  if (targetEventId) {
     const updatedEvent = await updateGoogleCalendarEvent(
       userId,
-      eventId,
+      targetEventId,
       {
         summary: intent.subject || threadSubject || "Rescheduled Meeting",
         start: { dateTime: slot.start },

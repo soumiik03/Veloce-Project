@@ -86,7 +86,10 @@ export default function Home() {
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null)
 
   useEffect(() => {
-    const isAuth = document.cookie.split("; ").some(row => row.trim().startsWith("veloce_logged_in="))
+    const isAuth = document.cookie.split("; ").some(row => {
+      const trimmed = row.trim()
+      return trimmed.startsWith("veloce_logged_in=") || trimmed.includes("session-token=")
+    })
     setIsAuthenticated(isAuth)
   }, [])
 
@@ -145,7 +148,7 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-4">
             {isAuthenticated ? (
               <a
-                href="/workspace"
+                href="/app/workspace"
                 className="px-5 py-2 border border-indigo-500/20 rounded-full text-xs font-mono font-medium hover:bg-indigo-500/5 hover:border-indigo-500/40 text-indigo-200 transition duration-300 flex items-center gap-2"
               >
                 Dashboard
@@ -229,7 +232,7 @@ export default function Home() {
             <hr className="border-indigo-500/10 my-2" />
             {isAuthenticated ? (
               <a
-                href="/workspace"
+                href="/app/workspace"
                 className="py-2.5 px-4 bg-indigo-600/15 border border-indigo-500/30 rounded-xl text-center font-semibold text-indigo-300 text-sm font-sans"
               >
                 Dashboard
@@ -288,7 +291,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2 w-full sm:w-auto">
             {isAuthenticated ? (
               <a
-                href="/workspace"
+                href="/app/workspace"
                 className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-zinc-150 text-zinc-950 text-sm font-semibold rounded-full shadow-[0_4px_20px_rgba(99,102,241,0.2)] transition duration-300 flex items-center justify-center gap-3 group"
               >
                 Go to Workspace

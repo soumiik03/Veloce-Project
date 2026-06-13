@@ -12,19 +12,29 @@ function buildEmail({
   to,
   subject,
   body,
+  messageId,
 }: {
   to: string
   subject: string
   body: string
+  messageId?: string | null
 }) {
-  return [
+  const headers = [
     `To: ${to}`,
     `Subject: ${subject}`,
     "MIME-Version: 1.0",
     'Content-Type: text/plain; charset="UTF-8"',
-    "",
-    body,
-  ].join("\r\n")
+  ]
+
+  if (messageId) {
+    headers.push(`In-Reply-To: ${messageId}`)
+    headers.push(`References: ${messageId}`)
+  }
+
+  headers.push("")
+  headers.push(body)
+
+  return headers.join("\r\n")
 }
 
 export async function createNegotiationDraft(input: {
@@ -32,8 +42,10 @@ export async function createNegotiationDraft(input: {
   to: string
   subject: string
   slot: { start: string; end: string } | null
+  threadId?: string
+  messageId?: string | null
 }) {
-  const { userId, to, subject, slot } = input
+  const { userId, to, subject, slot, threadId, messageId } = input
   const tenant = corsair.withTenant(userId)
 
   let body = ""
@@ -50,6 +62,7 @@ export async function createNegotiationDraft(input: {
       to,
       subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
       body,
+      messageId,
     })
   )
 
@@ -58,6 +71,7 @@ export async function createNegotiationDraft(input: {
     draft: {
       message: {
         raw,
+        threadId,
       },
     },
   })

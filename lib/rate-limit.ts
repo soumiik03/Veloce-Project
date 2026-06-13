@@ -42,6 +42,9 @@ export async function applyRateLimit(
   req: NextRequest,
   limiter: Ratelimit
 ): Promise<RateLimitResult> {
+  if (process.env.NODE_ENV === 'development') {
+    return { limited: false }
+  }
   const ip = getIP(req)
   const { success, limit, remaining, reset } = await limiter.limit(ip)
 

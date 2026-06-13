@@ -171,75 +171,75 @@ export default function WorkspacePage() {
 
   // Trigger reschedule flow
   const triggerRescheduleAgent = async () => {
-    if (!selectedThreadId || !detection) return
+    if (!selectedThreadId) return
 
     setOrchestrating(true)
     setOrchestrationResult(null)
-    setLogs([])
+    setLogs(["[INFO] Initiating Gmail rescheduling agent...", "[INFO] Analyzing intent profile constraints..."])
 
-    const appendLog = (msg: string, delay: number) => {
-      return new Promise<void>((resolve) => {
-        setTimeout(() => {
-          setLogs((prev) => [...prev, msg])
-          resolve()
-        }, delay)
-      })
-    }
+    try {
+      const cookieVal = document.cookie
+        .split("; ")
+        .find(row => row.startsWith("accessToken="))
+        ?.split("=")[1]
 
-    await appendLog("[SPINNING ENGINE] Launching Veloce Autonomous Agent...", 400)
-    await appendLog(`[PARSING CONTEXT] Thread ID: ${selectedThreadId}`, 500)
-    await appendLog(`[PARSING CONTEXT] Sender: ${detection.attendees[0]}`, 300)
-    await appendLog("[SCANNING CALENDAR] Analyzing Google Calendar constraints...", 600)
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const nextWeek = new Date()
+      nextWeek.setDate(nextWeek.getDate() + 7)
 
-    // Simulate conflict checks
-    const hasConflict = events.some((evt) => {
-      const startDay = new Date(evt.start.dateTime || "").getDay()
-      return startDay === 5 // conflict on Friday
-    })
-
-    if (hasConflict) {
-      await appendLog("[CONFLICT FOUND] Found overlapping slot: 'Project Architecture Sync' already scheduled.", 400)
-    }
-
-    await appendLog("[MATCHING SLOTS] Evaluating open slots for Friday morning...", 500)
-
-    const proposedSlot = new Date()
-    proposedSlot.setDate(proposedSlot.getDate() + (5 - proposedSlot.getDay())) // nearest Friday
-    proposedSlot.setHours(10, 0, 0, 0) // 10:00 AM
-
-    await appendLog(`[PROPOSING SLOT] Target: Friday at ${proposedSlot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 400)
-    await appendLog("[STAGING ACTION] Compiling Gmail draft reply...", 500)
-    await appendLog("[SUCCESS] Autonomous schedule calibration complete.", 300)
-
-    setOrchestrationResult({
-      draft: {
-        message: `Hi John,\n\nI can absolutely reschedule our sync. Friday morning at 10:00 AM EST works perfectly on my end. I've staged this calendar update.\n\nBest,\nSoumik`
-      },
-      event: {
-        summary: `Rescheduled: Project Architecture Sync`,
-        start: { dateTime: proposedSlot.toISOString() },
-        end: { dateTime: new Date(proposedSlot.getTime() + 1800 * 1000).toISOString() },
-        attendees: detection.attendees.map(email => ({ email })),
-        status: "tentative"
+      const body = {
+        threadId: selectedThreadId,
+        timeMin: tomorrow.toISOString(),
+        timeMax: nextWeek.toISOString(),
+        slotMinutes: 30,
+        calendarId: "primary"
       }
-    })
-    setOrchestrating(false)
 
-    // Stage temporary visual event on timeline
-    setTempScheduledEvent({
-      id: "staged-temp-event",
-      summary: `Rescheduled: Project Architecture Sync (STAGED)`,
-      start: { dateTime: proposedSlot.toISOString() },
-      end: { dateTime: new Date(proposedSlot.getTime() + 1800 * 1000).toISOString() },
-      attendees: detection.attendees.map(email => ({ email })),
-      status: "tentative"
-    })
+      setLogs(prev => [...prev, "[INFO] Querying live Google API microservice..."])
+
+      const res = await fetch("/api/reschedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cookieVal || ""}`
+        },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        setLogs(prev => [
+          ...prev,
+          `[INFO] Status: ${data.status}`,
+          data.recommendedSlot ? `[INFO] Proposing slot: ${new Date(data.recommendedSlot.start).toLocaleString()}` : `[INFO] No slot found.`,
+          `[SUCCESS] Orchestration flow completed.`
+        ])
+        setOrchestrationResult(data)
+        if (data.recommendedSlot) {
+          setTempScheduledEvent({
+            id: "staged-temp-event",
+            summary: data.detection?.subject || "Veloce Suggestion: Staged",
+            start: { dateTime: data.recommendedSlot.start },
+            end: { dateTime: data.recommendedSlot.end },
+            attendees: data.detection?.attendees?.map((email: string) => ({ email })) || [],
+            status: "tentative"
+          })
+        }
+      } else {
+        setLogs(prev => [...prev, `[ERROR] Execution failed: ${data.error || "Unknown error"}`])
+      }
+    } catch (err: any) {
+      setLogs(prev => [...prev, `[ERROR] Network error: ${err.message}`])
+    } finally {
+      setOrchestrating(false)
+    }
   }
 
   // Commit calendar update & send email draft
   const commitSchedule = async () => {
     if (!orchestrationResult) return
-    setLogs((prev) => [...prev, "[COMMITING] Sending draft email reply via Google API...", "[COMMITING] Writing event to Google Calendar..."])
+    setLogs((prev) => [...prev, "[COMMITING] Sending draft email reply via Google API...", "[COMMITING] Dispatched draft reply..."])
 
     if (!selectedThreadId) return
     if (selectedThreadId.startsWith("mock-")) {
@@ -260,24 +260,71 @@ export default function WorkspacePage() {
         .find(row => row.startsWith("accessToken="))
         ?.split("=")[1]
 
-      const res = await fetch("/api/calendar/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${cookieVal || ""}`
-        },
-        body: JSON.stringify(orchestrationResult.event)
-      })
-
-      if (res.ok) {
-        setLogs((prev) => [...prev, "[SUCCESS] Google Calendar event sync'd."])
-        const newEvent = await res.json()
-        setEvents((prev) => [...prev, newEvent])
-      } else {
-        setLogs((prev) => [...prev, "[ERROR] Calendar creation failed."])
+      if (orchestrationResult.draft?.id) {
+        const res = await fetch("/api/emails/drafts/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${cookieVal || ""}`
+          },
+          body: JSON.stringify({ draftId: orchestrationResult.draft.id })
+        })
+        if (res.ok) {
+          setLogs((prev) => [...prev, "[SUCCESS] Gmail reply draft sent."])
+          
+          setAssistantMessages((prev) => [
+            ...prev,
+            {
+              sender: "veloce",
+              text: "Successfully sent the reply email: \"" + (orchestrationResult.draft.message || "") + "\"",
+              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            }
+          ])
+        } else {
+          const data = await res.json()
+          setLogs((prev) => [...prev, `[ERROR] Failed to send email draft: ${data.error || "Unknown error"}`])
+        }
       }
-    } catch (err) {
-      setLogs((prev) => [...prev, "[ERROR] Connection failed."])
+    } catch (err: any) {
+      setLogs((prev) => [...prev, `[ERROR] Connection failed: ${err.message || err}`])
+    } finally {
+      setTempScheduledEvent(null)
+      setOrchestrationResult(null)
+    }
+  }
+
+  // Discard draft and staged event
+  const cancelSchedule = async () => {
+    if (!orchestrationResult) return
+    setLogs((prev) => [...prev, "[CANCELLING] Discarding draft email...", "[CANCELLING] Discarding staged event..."])
+
+    try {
+      const cookieVal = document.cookie
+        .split("; ")
+        .find(row => row.startsWith("accessToken="))
+        ?.split("=")[1]
+
+      if (orchestrationResult.draft?.id) {
+        await fetch(`/api/emails/drafts/${orchestrationResult.draft.id}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${cookieVal || ""}`
+          }
+        })
+      }
+
+      if (orchestrationResult.calendarEvent?.id) {
+        await fetch(`/api/calendar/events/${orchestrationResult.calendarEvent.id}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${cookieVal || ""}`
+          }
+        })
+      }
+
+      setLogs((prev) => [...prev, "[SUCCESS] Discarded staged changes."])
+    } catch (err: any) {
+      setLogs((prev) => [...prev, `[ERROR] Failed to discard changes: ${err.message}`])
     } finally {
       setTempScheduledEvent(null)
       setOrchestrationResult(null)
@@ -363,18 +410,83 @@ export default function WorkspacePage() {
               }
             })
           })
-          const data = await res.json()
-          if (res.ok) {
-            setAssistantMessages((prev) => [
-              ...prev,
-              {
-                sender: "veloce",
-                text: data.response,
-                time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              }
-            ])
-          } else {
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
             throw new Error(data.error || "Failed to query agent")
+          }
+
+          const reader = res.body?.getReader()
+          if (!reader) {
+            throw new Error("No response reader available")
+          }
+
+          // Add a new empty slot for the assistant message
+          setAssistantMessages((prev) => [
+            ...prev,
+            {
+              sender: "veloce",
+              text: "",
+              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            }
+          ])
+
+          const decoder = new TextDecoder()
+          let accumulatedText = ""
+          let buffer = ""
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split("\n")
+            buffer = lines.pop() || ""
+
+            for (const line of lines) {
+              const trimmed = line.trim()
+              if (!trimmed.startsWith("data:")) continue
+
+              const jsonStr = trimmed.slice(5).trim()
+              try {
+                const parsed = JSON.parse(jsonStr)
+                if (parsed.text) {
+                  accumulatedText += parsed.text
+                  setAssistantMessages((prev) => {
+                    const next = [...prev]
+                    if (next.length > 0) {
+                      next[next.length - 1] = {
+                        ...next[next.length - 1],
+                        text: accumulatedText
+                      }
+                    }
+                    return next
+                  })
+                }
+              } catch (e) {
+                console.warn("Failed to parse client SSE chunk:", jsonStr, e)
+              }
+            }
+          }
+
+          if (buffer.trim().startsWith("data:")) {
+            const jsonStr = buffer.trim().slice(5).trim()
+            try {
+              const parsed = JSON.parse(jsonStr)
+              if (parsed.text) {
+                accumulatedText += parsed.text
+                setAssistantMessages((prev) => {
+                  const next = [...prev]
+                  if (next.length > 0) {
+                    next[next.length - 1] = {
+                      ...next[next.length - 1],
+                      text: accumulatedText
+                    }
+                  }
+                  return next
+                })
+              }
+            } catch {}
           }
         } catch (err: any) {
           setAssistantMessages((prev) => [
@@ -467,7 +579,7 @@ export default function WorkspacePage() {
           {/* Chat / Detail Scroll Area */}
           <div className="flex-1 overflow-y-auto space-y-5 pr-1 pb-4">
             
-            {!selectedThreadId ? (
+            {(!selectedThreadId && assistantMessages.length === 0) ? (
               /* Splash Welcome screen if no thread is active */
               <div className="h-full flex flex-col justify-center items-center text-center p-6 select-none gap-6">
                 <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-zinc-550 font-black text-xl animate-float">
@@ -502,41 +614,45 @@ export default function WorkspacePage() {
               <div className="space-y-4">
                 
                 {/* Active Thread Header */}
-                <div className="border-b border-zinc-900 pb-3 mb-2 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-zinc-100 truncate max-w-sm">
-                      {threadDetail?.messages?.[0]?.payload?.headers?.find((h: any) => h.name.toLowerCase() === "subject")?.value || "Conversation Feed"}
-                    </h3>
-                    <span className="text-[9px] font-mono text-zinc-550 block mt-0.5">
-                      ACTIVE CONTEXT DETECTED
-                    </span>
+                {selectedThreadId && (
+                  <div className="border-b border-zinc-900 pb-3 mb-2 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100 truncate max-w-sm">
+                        {threadDetail?.messages?.[0]?.payload?.headers?.find((h: any) => h.name.toLowerCase() === "subject")?.value || "Conversation Feed"}
+                      </h3>
+                      <span className="text-[9px] font-mono text-zinc-550 block mt-0.5">
+                        ACTIVE CONTEXT DETECTED
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <StatusBadge type="success">Connected</StatusBadge>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <StatusBadge type="success">Connected</StatusBadge>
-                  </div>
-                </div>
+                )}
 
                 {/* Email Messages Timeline */}
-                {loadingDetail ? (
-                  <div className="py-24 text-center text-xs text-zinc-500 font-mono animate-pulse">
-                    PARSING CONVERSATION TELEMETRY...
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {threadDetail?.messages?.map((msg: any, i: number) => {
-                      const fromHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "from")?.value
-                      const dateHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "date")?.value
-                      return (
-                        <div key={i} className="p-4 bg-zinc-950/50 border border-zinc-900 rounded-xl">
-                          <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono mb-2">
-                            <span className="font-semibold text-zinc-400">{fromHeader}</span>
-                            <span>{dateHeader}</span>
+                {selectedThreadId && (
+                  loadingDetail ? (
+                    <div className="py-24 text-center text-xs text-zinc-500 font-mono animate-pulse">
+                      PARSING CONVERSATION TELEMETRY...
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {threadDetail?.messages?.map((msg: any, i: number) => {
+                        const fromHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "from")?.value
+                        const dateHeader = msg.payload?.headers?.find((h: any) => h.name.toLowerCase() === "date")?.value
+                        return (
+                          <div key={i} className="p-4 bg-zinc-950/50 border border-zinc-900 rounded-xl">
+                            <div className="flex justify-between items-center text-[10px] text-zinc-550 font-mono mb-2">
+                              <span className="font-semibold text-zinc-400">{fromHeader}</span>
+                              <span>{dateHeader}</span>
+                            </div>
+                            <p className="text-xs text-zinc-300 font-light leading-relaxed">{msg.snippet}</p>
                           </div>
-                          <p className="text-xs text-zinc-300 font-light leading-relaxed">{msg.snippet}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
+                        )
+                      })}
+                    </div>
+                  )
                 )}
 
                 {/* Orchestration Log Feed */}
@@ -578,7 +694,7 @@ export default function WorkspacePage() {
                       <span>Actions Matrix Ready</span>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setOrchestrationResult(null)}
+                          onClick={cancelSchedule}
                           className="px-3 py-1.5 border border-zinc-850 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg text-[10px] font-mono cursor-pointer transition"
                         >
                           Cancel
