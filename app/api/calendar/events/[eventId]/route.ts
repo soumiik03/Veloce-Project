@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
-import { getTenant, provisionTenant } from "@/lib/corsair/tenant"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 export async function PATCH(
   req: NextRequest,
@@ -20,16 +20,24 @@ export async function PATCH(
       return NextResponse.json({ error: "Event payload is required" }, { status: 400 })
     }
 
-    await provisionTenant(user.id)
-    const tenant = getTenant(user.id)
+    const token = await getValidAccessToken(user.id, 'calendar')
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`)
 
-    const result = await tenant.googlecalendar.api.events.patch({
-      calendarId,
-      eventId,
-      requestBody: event
+    const res = await fetch(url.toString(), {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(event)
     })
 
-    return NextResponse.json(result.data, { status: 200 })
+    if (!res.ok) {
+      throw new Error("Failed to update event via Calendar API")
+    }
+
+    const result = await res.json()
+    return NextResponse.json(result, { status: 200 })
   } catch (error: any) {
     console.error("[calendar/events/[eventId]] PATCH Error:", error)
     return NextResponse.json({ error: error.message || "Failed to update event" }, { status: 500 })
@@ -50,13 +58,17 @@ export async function DELETE(
     const { searchParams } = new URL(req.url)
     const calendarId = searchParams.get("calendarId") || "primary"
 
-    await provisionTenant(user.id)
-    const tenant = getTenant(user.id)
+    const token = await getValidAccessToken(user.id, 'calendar')
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`)
 
-    await tenant.googlecalendar.api.events.delete({
-      calendarId,
-      eventId
+    const res = await fetch(url.toString(), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
     })
+
+    if (!res.ok) {
+      throw new Error("Failed to delete event via Calendar API")
+    }
 
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error: any) {

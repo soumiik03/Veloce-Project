@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
-import { getTenant, provisionTenant } from "@/lib/corsair/tenant"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 export async function POST(req: NextRequest) {
   let userId = ""
@@ -20,15 +20,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Event payload is required" }, { status: 400 })
     }
 
-    await provisionTenant(userId)
-    const tenant = getTenant(userId)
+    const token = await getValidAccessToken(userId, 'calendar')
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`)
     
-    const result = await tenant.googlecalendar.api.events.insert({
-      calendarId,
-      requestBody: event
+    const res = await fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(eventPayload)
     })
+
+    if (!res.ok) {
+      throw new Error("Failed to insert event via Calendar API")
+    }
     
-    return NextResponse.json(result.data, { status: 201 })
+    const result = await res.json()
+    return NextResponse.json(result, { status: 201 })
   } catch (error: unknown) {
     const err = error as Error
     console.error("[calendar/events] POST Error:", err.message || err)
@@ -50,18 +59,23 @@ export async function GET(req: NextRequest) {
     const timeMin = searchParams.get("timeMin") || new Date().toISOString()
     const timeMax = searchParams.get("timeMax") || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    await provisionTenant(userId)
-    const tenant = getTenant(userId)
-    
-    const result = await tenant.googlecalendar.api.events.list({
-      calendarId,
-      timeMin,
-      timeMax,
-      singleEvents: true,
-      orderBy: "startTime"
+    const token = await getValidAccessToken(userId, 'calendar')
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`)
+    url.searchParams.set("timeMin", timeMin)
+    url.searchParams.set("timeMax", timeMax)
+    url.searchParams.set("singleEvents", "true")
+    url.searchParams.set("orderBy", "startTime")
+
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` }
     })
 
-    return NextResponse.json({ items: result.data.items || [] }, { status: 200 })
+    if (!res.ok) {
+      throw new Error("Failed to list events from Calendar API")
+    }
+
+    const result = await res.json()
+    return NextResponse.json(result.items || [], { status: 200 })
   } catch (error: unknown) {
     const err = error as Error
     console.error("[calendar/events] GET Error:", err.message || err)

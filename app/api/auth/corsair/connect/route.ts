@@ -20,16 +20,38 @@ export async function GET(req: NextRequest) {
 
     const tenantId = user.id
     await provisionTenant(tenantId)
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/corsair`
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
 
     const { url } = await generateOAuthUrl(corsair, pluginId, {
       tenantId,
       redirectUri,
     })
 
-    return NextResponse.json({ url })
+    console.log(`[corsair/connect] Redirecting to OAuth URL for plugin=${pluginId}, tenant=${tenantId}`)
+    
+    const response = NextResponse.redirect(url)
+    const referer = req.headers.get("referer")
+    if (referer) {
+      try {
+        const refererUrl = new URL(referer)
+        // Store only the path (like "/app/settings" or "/app/onboarding")
+        response.cookies.set("corsair_oauth_redirect", refererUrl.pathname, { maxAge: 600, httpOnly: true })
+      } catch (e) {
+        // ignore invalid URL
+      }
+    }
+    return response
   } catch (error: any) {
     console.error("[corsair/connect] Error:", error)
-    return NextResponse.json({ error: error.message || "Failed to generate connect URL" }, { status: 500 })
+    const referer = req.headers.get("referer")
+    let targetPath = "/app/onboarding"
+    if (referer) {
+      try {
+        targetPath = new URL(referer).pathname
+      } catch {}
+    }
+    const errorUrl = new URL(targetPath, req.url)
+    errorUrl.searchParams.set("error", error.message || "Failed to start OAuth")
+    return NextResponse.redirect(errorUrl)
   }
 }

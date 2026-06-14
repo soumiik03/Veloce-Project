@@ -14,58 +14,69 @@ export function SidebarClient() {
   const [chatRecents, setChatRecents] = useState<any[]>([])
   const [mailRecents, setMailRecents] = useState<any[]>([])
   const [calendarRecents, setCalendarRecents] = useState<any[]>([])
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   // Fetch recents based on current path
   useEffect(() => {
     const fetchRecents = async () => {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
-      const headers = { "Authorization": `Bearer ${token || ""}` }
+      setFetchError(null)
 
       // Fetch Chat threads
       if (pathname.includes("/chat")) {
         try {
-          const res = await fetch("/api/agent/threads", { headers })
-          const data = await res.json()
-          if (res.ok && data.threads) {
-            setChatRecents(data.threads.slice(0, 10))
+          const res = await fetch("/api/agent/threads", { credentials: "include" })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.threads) {
+              setChatRecents(data.threads.slice(0, 10))
+            }
+          } else if (res.status !== 401) {
+            console.error("Error fetching chat recents: HTTP", res.status)
           }
         } catch (err) {
           console.error("Error fetching chat recents:", err)
+          setFetchError("Failed to load chat recents")
         }
       }
       
       // Fetch Mail threads
       if (pathname.includes("/mail")) {
         try {
-          const res = await fetch("/api/emails", { headers })
-          const data = await res.json()
-          if (res.ok && data.threads) {
-            setMailRecents(data.threads.slice(0, 10))
+          const res = await fetch("/api/emails", { credentials: "include" })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.threads) {
+              setMailRecents(data.threads.slice(0, 10))
+            }
+          } else if (res.status !== 401) {
+            console.error("Error fetching mail recents: HTTP", res.status)
           }
         } catch (err) {
           console.error("Error fetching mail recents:", err)
+          setFetchError("Failed to load mail recents")
         }
       }
 
       // Fetch Calendar events
       if (pathname.includes("/calendar")) {
         try {
-          const res = await fetch("/api/calendar/events", { headers })
-          const data = await res.json()
-          if (res.ok && data.items) {
-            setCalendarRecents(
-              data.items.slice(0, 10).map((e: any) => ({
-                id: e.id,
-                subject: e.summary || "No Summary"
-              }))
-            )
+          const res = await fetch("/api/calendar/events", { credentials: "include" })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.items) {
+              setCalendarRecents(
+                data.items.slice(0, 10).map((e: any) => ({
+                  id: e.id,
+                  subject: e.summary || "No Summary"
+                }))
+              )
+            }
+          } else if (res.status !== 401) {
+            console.error("Error fetching calendar recents: HTTP", res.status)
           }
         } catch (err) {
           console.error("Error fetching calendar recents:", err)
+          setFetchError("Failed to load calendar recents")
         }
       }
     }
@@ -74,6 +85,7 @@ export function SidebarClient() {
       fetchRecents()
     }
   }, [pathname, user])
+
 
   // Segmented control active state calculation
   const getActiveTab = () => {
@@ -233,7 +245,11 @@ export function SidebarClient() {
             RECENTS
           </span>
           <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-            {currentRecents.length === 0 ? (
+            {fetchError ? (
+              <span className="text-[11px] text-red-400/70 block py-1 font-mono italic select-none">
+                {fetchError}
+              </span>
+            ) : currentRecents.length === 0 ? (
               <span className="text-[11px] text-[#444444] block py-1 font-mono italic select-none">
                 No recent items
               </span>

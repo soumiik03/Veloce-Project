@@ -46,22 +46,9 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
     }
   }, [gmailConnected, calendarConnected])
 
-  const handleConnect = async (plugin: "gmail" | "googlecalendar") => {
+  const handleConnect = (plugin: "gmail" | "googlecalendar") => {
     setLoading(true)
-    try {
-      const res = await fetch(`/api/auth/corsair/connect?plugin=${plugin}`)
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        alert("Failed to generate connect link")
-        setLoading(false)
-      }
-    } catch (err) {
-      console.error(err)
-      alert("Error starting OAuth connection flow")
-      setLoading(false)
-    }
+    window.location.href = `/api/auth/corsair/connect?plugin=${plugin}`
   }
 
   const handleNext = async () => {

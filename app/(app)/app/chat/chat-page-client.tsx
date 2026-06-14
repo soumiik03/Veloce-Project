@@ -56,13 +56,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
     const fetchHistory = async () => {
       setLoading(true)
       try {
-        const token = document.cookie
-          .split("; ")
-          .find(row => row.startsWith("accessToken="))
-          ?.split("=")[1]
-
-        const headers = { "Authorization": `Bearer ${token || ""}` }
-        const res = await fetch(`/api/agent/threads/${id}`, { headers })
+        const res = await fetch(`/api/agent/threads/${id}`, { credentials: "include" })
         if (res.ok) {
           const data = await res.json()
           if (active && data.messages) {
@@ -118,17 +112,12 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
     setStreamingMessage("")
 
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token || ""}`
+          "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({
           message: messageContent,
           threadId: activeThreadId,
@@ -179,9 +168,9 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
         setStreamingMessage("")
       }
 
-      // If it's a new thread, navigate to the specific thread route
+      // If it's a new thread, navigate to the specific thread route silently to prevent remounting
       if (isNewThread) {
-        router.push(`/app/chat/${activeThreadId}`)
+        window.history.replaceState(null, '', `/app/chat/${activeThreadId}`)
       }
     } catch (err: any) {
       console.error(err)

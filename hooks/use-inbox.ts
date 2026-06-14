@@ -26,15 +26,8 @@ export function useInbox() {
   const fetchThreads = async () => {
     setLoading(true)
     try {
-      const cookieVal = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
       const res = await fetch("/api/emails", {
-        headers: {
-          "Authorization": `Bearer ${cookieVal || ""}`
-        }
+        credentials: "include"
       })
       const data = await res.json()
       if (res.ok && data.threads && data.threads.length > 0) {

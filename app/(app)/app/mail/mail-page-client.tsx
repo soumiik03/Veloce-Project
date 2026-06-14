@@ -182,6 +182,14 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     const content = latestMessage.snippet || latestMessage.content || ""
 
     try {
+      const fromHeader = latestMessage.payload?.headers?.find((h: any) => h.name.toLowerCase() === "from")?.value || ""
+      const prompt = `Write a professional reply to the following email thread:
+Subject: "${subject}"
+Sender: "${fromHeader}"
+Content: "${content}"
+
+Keep the response concise, clear, and direct. Output only the email body without any email header tokens.`
+
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: {
@@ -380,7 +388,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ message: prompt })
+        body: JSON.stringify({ message: query })
       })
 
       if (!res.ok) throw new Error("AI agent offline")
@@ -413,7 +421,9 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
               accumulatedText += parsed.text
               setAiChatLogs(prev => {
                 const next = [...prev]
-                next[next.length - 1].text = accumulatedText
+                const last = { ...next[next.length - 1] }
+                last.text = accumulatedText
+                next[next.length - 1] = last
                 return next
               })
             }

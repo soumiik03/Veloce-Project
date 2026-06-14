@@ -1,10 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useAuth } from "@/hooks/use-auth"
+import { useSearchParams } from "next/navigation"
 
-export default function SettingsPage() {
+function SettingsContent() {
   const { logout } = useAuth()
+  const searchParams = useSearchParams()
+  const [error, setError] = useState<string | null>(null)
   
   // Connection statuses
   const [connectionStatus, setConnectionStatus] = useState<{
@@ -23,6 +26,14 @@ export default function SettingsPage() {
   // Toggles
   const [conflictAlerts, setConflictAlerts] = useState(true)
   const [dailySummary, setDailySummary] = useState(true)
+
+  // Check for error from OAuth redirect
+  useEffect(() => {
+    const errorParam = searchParams.get("error")
+    if (errorParam) {
+      setError(errorParam)
+    }
+  }, [searchParams])
 
   // Fetch current connection statuses on mount
   useEffect(() => {
@@ -50,16 +61,9 @@ export default function SettingsPage() {
     }))
   }
 
-  const handleReconnect = async (plugin: "gmail" | "googlecalendar") => {
-    try {
-      const res = await fetch(`/api/auth/corsair/connect?plugin=${plugin}`)
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      }
-    } catch {
-      alert("Failed to trigger oauth.")
-    }
+  const handleReconnect = (plugin: "gmail" | "googlecalendar") => {
+    // Navigate the browser window directly to initiate Google OAuth consent flow
+    window.location.href = `/api/auth/corsair/connect?plugin=${plugin}`
   }
 
   return (
@@ -71,6 +75,11 @@ export default function SettingsPage() {
         <p className="text-xs text-[#888] font-sans font-light mt-1.5">
           Configure external OAuth telemetry coordinates and AI agent operational constraints.
         </p>
+        {error && (
+          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-mono">
+            ⚠ Connection error: {error}
+          </div>
+        )}
       </header>
 
       {/* Grid */}
@@ -329,3 +338,16 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-1 items-center justify-center bg-[#0d0d0d] text-[#888888] font-mono text-[13px] h-screen select-none">
+        <span>RETRIEVING SETTINGS PROFILE...</span>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
+  )
+}
+

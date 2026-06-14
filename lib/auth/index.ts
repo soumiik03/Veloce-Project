@@ -1,7 +1,6 @@
 /**
  * Auth module exports
- * Exports JWT utilities, OAuth logic, and token handling
+ * JWT utilities for token operations
  */
 
 export * from './jwt'
-export * from './oauth'

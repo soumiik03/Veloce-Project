@@ -15,7 +15,7 @@ export async function getFreeBusySlots(userId: string, timeMin: string, timeMax:
     throw new Error("userId, timeMin, and timeMax are required")
   }
 
-  const token = await getValidAccessToken(userId)
+  const token = await getValidAccessToken(userId, 'calendar')
 
   const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
     method: "POST",

@@ -44,12 +44,12 @@ async function getEmbedding(text: string): Promise<number[]> {
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "models/text-embedding-004",
+          model: "models/gemini-embedding-001",
           content: { parts: [{ text }] }
         })
       }
@@ -135,7 +135,7 @@ export async function detectConflicts(userId: string) {
       const nextWeek = new Date(tomorrow)
       nextWeek.setDate(tomorrow.getDate() + 7)
 
-      const token = await getValidAccessToken(userId)
+      const token = await getValidAccessToken(userId, 'calendar')
       const calendarUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events")
       calendarUrl.searchParams.set("timeMin", tomorrow.toISOString())
       calendarUrl.searchParams.set("timeMax", nextWeek.toISOString())

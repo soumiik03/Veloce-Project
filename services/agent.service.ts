@@ -41,7 +41,7 @@ export async function analyzeEmailWithGemini(
   `
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -210,7 +210,7 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
             emailHeaders.push(`References: ${messageId}`)
           }
           emailHeaders.push("", body)
-          const raw = Buffer.from(emailHeaders.join("rn"))
+          const raw = Buffer.from(emailHeaders.join("\r\n"))
             .toString("base64")
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
@@ -247,7 +247,7 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
       case "get_events": {
         const { timeMin, timeMax } = args
         try {
-          const token = await getValidAccessToken(userId)
+          const token = await getValidAccessToken(userId, 'calendar')
           const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events")
           url.searchParams.set("timeMin", timeMin || new Date().toISOString())
           url.searchParams.set("timeMax", timeMax || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString())
@@ -489,11 +489,11 @@ export async function runAgentCoPilotStream(
     async start(controller) {
       const _onToken = (text: string) => {
         if (onToken) onToken(text)
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}nn`) as any)
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`) as any)
       }
       const _onLog = (log: string) => {
         if (onLog) onLog(log)
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ log })}nn`) as any)
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ log })}\n\n`) as any)
       }
 
       try {
@@ -508,7 +508,7 @@ export async function runAgentCoPilotStream(
         ]
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -547,7 +547,7 @@ export async function runAgentCoPilotStream(
           const toolResult = await executeTool(userId, name, args)
 
           const sseResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?key=${apiKey}&alt=sse`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -599,7 +599,7 @@ export async function runAgentCoPilotStream(
               const { done, value } = await reader.read()
               if (done) break
               buffer += decoder.decode(value, { stream: true })
-              const lines = buffer.split("n")
+              const lines = buffer.split("\n")
               buffer = lines.pop() || ""
               for (const line of lines) {
                 const trimmed = line.trim()

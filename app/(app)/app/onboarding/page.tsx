@@ -1,14 +1,25 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [gmailConnected, setGmailConnected] = useState(false)
   const [calendarConnected, setCalendarConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Check for error from OAuth redirect
+  useEffect(() => {
+    const errorParam = searchParams.get("error")
+    if (errorParam) {
+      setError(errorParam)
+      setConnecting(false)
+    }
+  }, [searchParams])
 
   const checkStatus = useCallback(async () => {
     try {
@@ -74,6 +85,11 @@ export default function OnboardingPage() {
           Veloce reads incoming schedule signals, checks calendar conflicts, and drafts replies. 
           Grant permissions below via secure Google OAuth.
         </p>
+        {error && (
+          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-mono">
+            ⚠ Connection error: {error}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl mb-10">

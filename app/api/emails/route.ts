@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
 import { getTenant, provisionTenant } from "@/lib/corsair/tenant"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 export async function GET(req: NextRequest) {
   let userId = ""
@@ -107,12 +108,20 @@ export async function POST(req: NextRequest) {
           .replace(/=+$/g, "")
       }
 
-      await tenant.gmail.api.users.messages.send({
-        userId: "me",
-        requestBody: {
-          raw: buildEmailRaw(),
-        }
+      const token = await getValidAccessToken(userId)
+      const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
+      const sendRes = await fetch(url.toString(), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ raw: buildEmailRaw() })
       })
+
+      if (!sendRes.ok) {
+        throw new Error("Failed to send message via Gmail API")
+      }
 
       return NextResponse.json({ success: true }, { status: 200 })
     } catch (apiErr) {
