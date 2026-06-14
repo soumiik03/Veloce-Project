@@ -1,45 +1,70 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
-import { getValidAccessToken } from "@/lib/auth/google"
+import { getTenant, provisionTenant } from "@/lib/corsair/tenant"
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
+  let userId = ""
+  let eventPayload: unknown = null
   try {
     const user = await getSessionUser(req)
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    userId = user.id
 
-    const { searchParams } = new URL(req.url)
-    const timeMin = searchParams.get("timeMin") || new Date().toISOString()
-    
-    // Default to +7 days if timeMax not provided
-    const nextWeek = new Date()
-    nextWeek.setDate(nextWeek.getDate() + 7)
-    const timeMax = searchParams.get("timeMax") || nextWeek.toISOString()
+    const body = await req.json()
+    const { event, calendarId = "primary" } = body
+    eventPayload = event
 
-    const accessToken = await getValidAccessToken(user.id)
-
-    const calendarUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events")
-    calendarUrl.searchParams.set("timeMin", timeMin)
-    calendarUrl.searchParams.set("timeMax", timeMax)
-    calendarUrl.searchParams.set("singleEvents", "true")
-    calendarUrl.searchParams.set("orderBy", "startTime")
-
-    const listResponse = await fetch(calendarUrl.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store"
-    })
-
-    if (!listResponse.ok) {
-      const errorData = await listResponse.json()
-      console.error("[calendar] Failed to fetch events:", errorData)
-      return NextResponse.json({ error: "Failed to fetch from Google Calendar" }, { status: listResponse.status })
+    if (!event) {
+      return NextResponse.json({ error: "Event payload is required" }, { status: 400 })
     }
 
-    const listData = await listResponse.json()
-    return NextResponse.json({ items: listData.items || [] })
-  } catch (error: any) {
-    console.error("[calendar] Error:", error)
-    return NextResponse.json({ error: error.message || "Failed to fetch calendar events" }, { status: 500 })
+    await provisionTenant(userId)
+    const tenant = getTenant(userId)
+    
+    const result = await tenant.googlecalendar.api.events.insert({
+      calendarId,
+      requestBody: event
+    })
+    
+    return NextResponse.json(result.data, { status: 201 })
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error("[calendar/events] POST Error:", err.message || err)
+    return NextResponse.json({ error: err.message || "Failed to create event" }, { status: 500 })
+  }
+}
+
+export async function GET(req: NextRequest) {
+  let userId = ""
+  try {
+    const user = await getSessionUser(req)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    userId = user.id
+
+    const { searchParams } = new URL(req.url)
+    const calendarId = searchParams.get("calendarId") || "primary"
+    const timeMin = searchParams.get("timeMin") || new Date().toISOString()
+    const timeMax = searchParams.get("timeMax") || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    await provisionTenant(userId)
+    const tenant = getTenant(userId)
+    
+    const result = await tenant.googlecalendar.api.events.list({
+      calendarId,
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: "startTime"
+    })
+
+    return NextResponse.json({ items: result.data.items || [] }, { status: 200 })
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error("[calendar/events] GET Error:", err.message || err)
+    return NextResponse.json({ error: err.message || "Failed to list events" }, { status: 500 })
   }
 }

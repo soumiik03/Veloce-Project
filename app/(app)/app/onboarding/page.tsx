@@ -42,8 +42,12 @@ export default function OnboardingPage() {
 
   const handleConnect = () => {
     setConnecting(true)
-    // Redirect to the combined Google OAuth consent flow
-    window.location.href = "/api/auth/google"
+    // Redirect to Corsair OAuth connect for gmail first, then calendar
+    if (!gmailConnected) {
+      window.location.href = "/api/auth/corsair/connect?plugin=gmail"
+    } else if (!calendarConnected) {
+      window.location.href = "/api/auth/corsair/connect?plugin=googlecalendar"
+    }
   }
 
   if (loading) {

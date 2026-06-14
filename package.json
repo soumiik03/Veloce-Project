@@ -10,9 +10,13 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.2",
+    "@corsair-dev/app": "^0.1.5",
+    "@corsair-dev/gmail": "^0.1.4",
+    "@corsair-dev/googlecalendar": "^0.1.4",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "bcryptjs": "^3.0.3",
+    "corsair": "^0.1.76",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.3",

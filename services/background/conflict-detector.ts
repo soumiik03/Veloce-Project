@@ -2,7 +2,6 @@
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
 import { getValidAccessToken } from "@/lib/auth/google"
 import { Redis } from "@upstash/redis"
-import { getSimulatedEmails, getSimulatedEvents } from "@/lib/simulated-data"
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -123,8 +122,9 @@ export async function detectConflicts(userId: string) {
         })
       )
       emails = fetchedEmails.filter(Boolean) as any
-    } catch {
-      emails = getSimulatedEmails(userId)
+    } catch (err: any) {
+      console.error("[Conflict Detector] Failed to fetch emails:", err.message)
+      throw err
     }
 
     // 2. Fetch calendar events
@@ -149,8 +149,9 @@ export async function detectConflicts(userId: string) {
       
       const result = await res.json()
       events = result.items || []
-    } catch {
-      events = getSimulatedEvents(userId)
+    } catch (err: any) {
+      console.error("[Conflict Detector] Failed to fetch events:", err.message)
+      throw err
     }
 
     const conflicts: any[] = []

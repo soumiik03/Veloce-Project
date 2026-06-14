@@ -1,28 +1,40 @@
-import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
-import { db } from "@/db"
-import { onboardingStatus } from "@/db/schema"
-import { eq } from "drizzle-orm"
-
-
+import { corsair } from "@/lib/corsair"
+import { provisionTenant } from "@/lib/corsair/tenant"
+import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(req: NextRequest) {
   try {
     const user = await getSessionUser(req)
-    if (!user) {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const [status] = await db
-      .select()
-      .from(onboardingStatus)
-      .where(eq(onboardingStatus.userId, user.id))
-      .limit(1)
+    const userId = user.id
+    await provisionTenant(userId)
+    const tenant = corsair.withTenant(userId)
+
+    let gmailConnected = false
+    let calendarConnected = false
+
+    try {
+      const gmailToken = await (tenant.gmail as any).keys.get_access_token()
+      gmailConnected = !!gmailToken
+    } catch (e) {
+      console.warn("Failed to check gmail token:", e)
+    }
+
+    try {
+      const calendarToken = await (tenant.googlecalendar as any).keys.get_access_token()
+      calendarConnected = !!calendarToken
+    } catch (e) {
+      console.warn("Failed to check calendar token:", e)
+    }
 
     return NextResponse.json({
-      gmail: status?.connectedGmail || false,
-      googlecalendar: status?.connectedCalendar || false,
-      connected: !!status?.completedAt,
+      gmail: gmailConnected,
+      googlecalendar: calendarConnected,
+      connected: gmailConnected && calendarConnected,
     })
   } catch (error: any) {
     console.error("[onboarding/status] Error:", error)

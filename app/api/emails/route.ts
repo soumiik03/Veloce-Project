@@ -1,83 +1,128 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/auth"
-import { getValidAccessToken } from "@/lib/auth/google"
+import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
+import { getTenant, provisionTenant } from "@/lib/corsair/tenant"
 
 export async function GET(req: NextRequest) {
+  let userId = ""
   try {
     const user = await getSessionUser(req)
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    userId = user.id
 
-    const accessToken = await getValidAccessToken(user.id)
+    const { searchParams } = new URL(req.url)
+    const maxResults = parseInt(searchParams.get("maxResults") || "10")
 
-    // Fetch the list of message IDs
-    const listResponse = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store"
-    })
+    await provisionTenant(userId)
+    const listResult = await listInboxThreads(user.id, maxResults)
+    const messages = (listResult.messages || []) as Array<{ threadId: string }>
 
-    if (!listResponse.ok) {
-      const errorData = await listResponse.json()
-      console.error("[emails] Failed to fetch message list:", errorData)
-      return NextResponse.json({ error: "Failed to fetch from Gmail" }, { status: listResponse.status })
-    }
-
-    const listData = await listResponse.json()
-    
-    if (!listData.messages || listData.messages.length === 0) {
-      return NextResponse.json({ threads: [] })
-    }
-
-    // Fetch full message details in parallel
-    const messagePromises = listData.messages.map(async (msg: { id: string }) => {
-      const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-      if (!msgRes.ok) {
-        return null
-      }
-      return msgRes.json()
-    })
-
-    const rawMessages = await Promise.all(messagePromises)
-
-    // Map to our Thread type format
-    const threads = rawMessages
-      .filter(Boolean)
-      .map(msg => {
-        const headers = msg.payload.headers || []
-        const getHeader = (name: string) => headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || ""
-        
-        // Clean up from address
-        let from = getHeader("From")
-        const match = from.match(/<(.+)>/)
-        if (match) {
-          from = match[1] // just the email address
-        }
-
-        // Format Date nicely
-        let formattedDate = getHeader("Date")
+    const threadIds = Array.from(new Set(messages.map((m) => m.threadId)))
+    const threads = await Promise.all(
+      threadIds.slice(0, 8).map(async (threadId: string) => {
         try {
-          const date = new Date(formattedDate)
-          formattedDate = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-        } catch {
-          // ignore
-        }
+          const detail = await getThreadMessages(user.id, threadId)
+          if (!detail || !detail.messages || detail.messages.length === 0) return null
+          const latest = detail.messages[detail.messages.length - 1]
+          const headers = (latest.payload?.headers || []) as Array<{ name: string; value: string }>
+          const getHeader = (name: string) => {
+            const h = headers.find((x) => x.name.toLowerCase() === name.toLowerCase())
+            return h ? h.value : null
+          }
+          
+          let from = getHeader("from") || "Unknown Sender"
+          const match = from.match(/<(.+)>/)
+          if (match) {
+            from = match[1] // just the email address
+          }
 
-        return {
-          id: msg.threadId || msg.id, // Group by thread if desired, but we map directly
-          subject: getHeader("Subject") || "(No Subject)",
-          from,
-          date: formattedDate,
-          snippet: msg.snippet,
+          let formattedDate = getHeader("date") || ""
+          try {
+            const date = new Date(formattedDate)
+            formattedDate = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+          } catch {
+            // ignore
+          }
+
+          return {
+            id: threadId,
+            subject: getHeader("subject") || latest.snippet || "No Subject",
+            from: from,
+            date: formattedDate,
+            snippet: latest.snippet || "",
+          }
+        } catch (err) {
+          console.error("Error fetching thread details:", err)
+          return null
+        }
+      })
+    )
+
+    return NextResponse.json({
+      threads: threads.filter(Boolean),
+    })
+  } catch (error) {
+    const err = error as Error
+    console.error("[api/emails] GET Error:", err.message || String(err))
+    return NextResponse.json({ error: err.message || "Failed to list emails" }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  let userId = ""
+  try {
+    const user = await getSessionUser(req)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    userId = user.id
+
+    const body = (await req.json()) as { to?: string; cc?: string; bcc?: string; subject?: string; content?: string }
+    const { to, cc, bcc, subject, content } = body
+
+    if (!to || !subject || !content) {
+      return NextResponse.json({ error: "Missing required fields (to, subject, content)" }, { status: 400 })
+    }
+
+    try {
+      await provisionTenant(userId)
+      const tenant = getTenant(userId)
+      
+      const buildEmailRaw = () => {
+        const headers = [`To: ${to}`]
+        if (cc) headers.push(`Cc: ${cc}`)
+        if (bcc) headers.push(`Bcc: ${bcc}`)
+        headers.push(`Subject: ${subject}`)
+        headers.push("MIME-Version: 1.0")
+        headers.push('Content-Type: text/plain; charset="UTF-8"')
+        headers.push("")
+        headers.push(content)
+        
+        return Buffer.from(headers.join("\r\n"))
+          .toString("base64")
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/g, "")
+      }
+
+      await tenant.gmail.api.users.messages.send({
+        userId: "me",
+        requestBody: {
+          raw: buildEmailRaw(),
         }
       })
 
-    return NextResponse.json({ threads })
-  } catch (error: any) {
-    console.error("[emails] Error:", error)
-    import('fs').then(fs => fs.writeFileSync('error.log', error.stack || error.message))
-    return NextResponse.json({ error: error.message || "Failed to fetch emails" }, { status: 500 })
+      return NextResponse.json({ success: true }, { status: 200 })
+    } catch (apiErr) {
+      const err = apiErr as Error
+      console.error("[api/emails] Google API send failed:", err.message)
+      return NextResponse.json({ error: err.message || "Failed to send email via Google API" }, { status: 500 })
+    }
+  } catch (error) {
+    const err = error as Error
+    console.error("[api/emails] POST send Error:", err)
+    return NextResponse.json({ error: err.message || "Failed to send email" }, { status: 500 })
   }
 }

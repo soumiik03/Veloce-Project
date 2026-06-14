@@ -1,7 +1,6 @@
-import { getSimulatedEmails } from "@/lib/simulated-data"
 import { createGoogleCalendarEvent, updateGoogleCalendarEvent, deleteGoogleCalendarEvent } from "@/services/calendar/google-calendar"
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
-import { sendThreadReply, createReplyDraft } from "@/services/mail/draft-reply"
+import { sendThreadReply } from "@/services/mail/draft-reply"
 import { getAvailability } from "@/services/calendar/event-service"
 import { getValidAccessToken } from "@/lib/auth/google"
 
@@ -42,7 +41,7 @@ export async function analyzeEmailWithGemini(
   `
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -127,9 +126,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           )
           return { threads: threads.filter(Boolean) }
         } catch (err: any) {
-          console.warn("Real Inbox fetch failed, falling back to simulated:", err.message)
-          const simulated = getSimulatedEmails(userId)
-          return { threads: simulated }
+          console.error("Real Inbox fetch failed:", err.message)
+          throw err
         }
       }
 
@@ -139,9 +137,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           const detail = await getThreadMessages(userId, threadId)
           return { thread: detail }
         } catch (err: any) {
-          console.warn("Real thread fetch failed, returning simulated:", err.message)
-          const simulated = getSimulatedEmails(userId).find(t => t.id === threadId)
-          return { thread: simulated }
+          console.error("Real thread fetch failed:", err.message)
+          throw err
         }
       }
 
@@ -179,12 +176,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           )
           return { threads: threads.filter(Boolean) }
         } catch (err: any) {
-          console.warn("Real search failed, returning filtered simulated:", err.message)
-          const queryLower = query.toLowerCase()
-          const filtered = getSimulatedEmails(userId).filter(t => 
-            t.subject.toLowerCase().includes(queryLower) || t.snippet.toLowerCase().includes(queryLower)
-          )
-          return { threads: filtered }
+          console.error("Real search failed:", err.message)
+          throw err
         }
       }
 
@@ -235,8 +228,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           
           return { success: true, draftId: draft.id, draftBody: body }
         } catch (err: any) {
-          console.warn("Gmail draft creation failed, using mock:", err.message)
-          return { success: true, draftId: "mock-draft-" + Date.now(), draftBody: body }
+          console.error("Gmail draft creation failed:", err.message)
+          throw err
         }
       }
 
@@ -246,8 +239,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           await sendThreadReply({ userId, threadId, body })
           return { success: true }
         } catch (err: any) {
-          console.warn("Gmail send failed, using mock:", err.message)
-          return { success: true, simulated: true }
+          console.error("Gmail send failed:", err.message)
+          throw err
         }
       }
 
@@ -267,8 +260,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           const result = await res.json()
           return { events: result.items || [] }
         } catch (err: any) {
-          console.warn("Calendar getEvents failed, returning simulated:", err.message)
-          return { events: getSimulatedEmails(userId) }
+          console.error("Calendar getEvents failed:", err.message)
+          throw err
         }
       }
 
@@ -283,8 +276,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           })
           return { success: true, event: result }
         } catch (err: any) {
-          console.warn("Calendar create failed, returning simulated:", err.message)
-          return { success: true, simulated: true }
+          console.error("Calendar create failed:", err.message)
+          throw err
         }
       }
 
@@ -297,8 +290,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           })
           return { success: true, event: result }
         } catch (err: any) {
-          console.warn("Calendar update failed, returning simulated:", err.message)
-          return { success: true, eventId, rescheduled: true, simulated: true }
+          console.error("Calendar update failed:", err.message)
+          throw err
         }
       }
 
@@ -308,8 +301,8 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           await deleteGoogleCalendarEvent(userId, eventId)
           return { success: true }
         } catch (err: any) {
-          console.warn("Calendar delete failed, using simulated:", err.message)
-          return { success: true, simulated: true }
+          console.error("Calendar delete failed:", err.message)
+          throw err
         }
       }
 
@@ -319,7 +312,7 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           const availability = await getAvailability(userId, timeMin, timeMax)
           return { availability }
         } catch (err: any) {
-          console.warn("Calendar get_availability failed, using simulated fallback:", err.message)
+          console.error("Calendar get_availability failed, returning empty availability:", err.message)
           return { availability: { calendars: { primary: { busy: [] } } } }
         }
       }
@@ -515,7 +508,7 @@ export async function runAgentCoPilotStream(
         ]
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -554,7 +547,7 @@ export async function runAgentCoPilotStream(
           const toolResult = await executeTool(userId, name, args)
 
           const sseResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?key=${apiKey}&alt=sse`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

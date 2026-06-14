@@ -11,7 +11,7 @@ export default function SettingsPage() {
     gmail: boolean
     googlecalendar: boolean
     connected: boolean
-  }>({ gmail: true, googlecalendar: true, connected: true })
+  }>({ gmail: false, googlecalendar: false, connected: false })
 
   // Preferences States
   const [selectedModel, setSelectedModel] = useState("Sonnet 4.6")

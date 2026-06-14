@@ -1,4 +1,4 @@
-import { getValidAccessToken } from "@/lib/auth/google"
+import { getTenant } from "@/lib/corsair/tenant"
 
 export type GmailThreadSummary = {
     id: string
@@ -14,17 +14,14 @@ export async function listInboxThreads(userId: string, maxResults = 20) {
         throw new Error("userId is required")
     }
 
-    const token = await getValidAccessToken(userId)
-
-    const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX`, {
-        headers: { Authorization: `Bearer ${token}` }
+    const tenant = getTenant(userId)
+    const res = await tenant.gmail.api.users.messages.list({
+        userId: "me",
+        maxResults,
+        labelIds: ["INBOX"]
     })
 
-    if (!res.ok) {
-        throw new Error("Failed to list inbox threads")
-    }
-
-    return res.json()
+    return res.data
 }
 
 export async function getThreadMessages(userId: string, threadId: string) {
@@ -32,15 +29,11 @@ export async function getThreadMessages(userId: string, threadId: string) {
         throw new Error("userId and threadId are required")
     }
 
-    const token = await getValidAccessToken(userId)
-
-    const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+    const tenant = getTenant(userId)
+    const res = await tenant.gmail.api.users.threads.get({
+        userId: "me",
+        id: threadId
     })
 
-    if (!res.ok) {
-        throw new Error("Failed to get thread messages")
-    }
-
-    return res.json()
+    return res.data
 }
