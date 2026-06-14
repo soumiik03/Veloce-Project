@@ -1,10 +1,9 @@
-import { getTenant } from "@/lib/corsair/tenant"
-import { saveSimulatedEmail, getSimulatedEmails } from "@/lib/simulated-data"
+import { getSimulatedEmails } from "@/lib/simulated-data"
 import { createGoogleCalendarEvent, updateGoogleCalendarEvent, deleteGoogleCalendarEvent } from "@/services/calendar/google-calendar"
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
-import { sendThreadReply } from "@/services/mail/draft-reply"
+import { sendThreadReply, createReplyDraft } from "@/services/mail/draft-reply"
 import { getAvailability } from "@/services/calendar/event-service"
-import { corsair } from "@/lib/corsair"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 export type GeminiMeetingAnalysis = {
   isMeetingRelated: boolean
@@ -15,9 +14,6 @@ export type GeminiMeetingAnalysis = {
   confidence: number
 }
 
-/**
- * Analyses email thread content to identify scheduling context using Gemini 2.5 Flash.
- */
 export async function analyzeEmailWithGemini(
   subject: string,
   body: string,
@@ -95,13 +91,8 @@ export async function analyzeEmailWithGemini(
   return JSON.parse(rawText) as GeminiMeetingAnalysis
 }
 
-// -------------------------------------------------------------
-// Unified Productivity Tools Implementation
-// -------------------------------------------------------------
-
 async function executeTool(userId: string, name: string, args: any): Promise<any> {
   console.log(`[Agent Tool Execution] Running ${name} with args:`, args)
-  const tenant = corsair.withTenant(userId)
 
   try {
     switch (name) {
@@ -157,11 +148,17 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
       case "search_emails": {
         const { query } = args
         try {
-          const listResult = await tenant.gmail.api.messages.list({
-            userId: "me",
-            q: query,
-            maxResults: 20
+          const token = await getValidAccessToken(userId)
+          const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages")
+          url.searchParams.set("q", query)
+          url.searchParams.set("maxResults", "20")
+
+          const listRes = await fetch(url.toString(), {
+            headers: { Authorization: `Bearer ${token}` }
           })
+          if (!listRes.ok) throw new Error("Search failed")
+          
+          const listResult = await listRes.json()
           const messages = listResult.messages || []
           const threadIds = Array.from(new Set(messages.map((m: any) => m.threadId)))
           const threads = await Promise.all(
@@ -193,8 +190,6 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
 
       case "draft_reply": {
         const { threadId, body } = args
-        // In Veloce, a draft reply is prepared and return to user review
-        // Create actual draft via Gmail API
         try {
           const thread = await getThreadMessages(userId, threadId)
           if (!thread || !thread.messages || thread.messages.length === 0) {
@@ -222,16 +217,22 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
             emailHeaders.push(`References: ${messageId}`)
           }
           emailHeaders.push("", body)
-          const raw = Buffer.from(emailHeaders.join("\r\n"))
+          const raw = Buffer.from(emailHeaders.join("rn"))
             .toString("base64")
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
             .replace(/=+$/g, "")
 
-          const draft = await tenant.gmail.api.drafts.create({
-            userId: "me",
-            draft: { message: { raw, threadId } }
+          const token = await getValidAccessToken(userId)
+          const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ message: { raw, threadId } })
           })
+
+          if (!res.ok) throw new Error("Failed to create draft")
+          const draft = await res.json()
+          
           return { success: true, draftId: draft.id, draftBody: body }
         } catch (err: any) {
           console.warn("Gmail draft creation failed, using mock:", err.message)
@@ -246,13 +247,6 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           return { success: true }
         } catch (err: any) {
           console.warn("Gmail send failed, using mock:", err.message)
-          saveSimulatedEmail(userId, {
-            to: "me",
-            subject: "Re: Sync",
-            from: "me",
-            date: new Date().toLocaleDateString(),
-            snippet: body
-          })
           return { success: true, simulated: true }
         }
       }
@@ -260,16 +254,21 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
       case "get_events": {
         const { timeMin, timeMax } = args
         try {
-          const result = await tenant.googlecalendar.api.events.getMany({
-            calendarId: "primary",
-            timeMin: timeMin || new Date().toISOString(),
-            timeMax: timeMax || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-            singleEvents: true,
+          const token = await getValidAccessToken(userId)
+          const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events")
+          url.searchParams.set("timeMin", timeMin || new Date().toISOString())
+          url.searchParams.set("timeMax", timeMax || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString())
+          url.searchParams.set("singleEvents", "true")
+
+          const res = await fetch(url.toString(), {
+            headers: { Authorization: `Bearer ${token}` }
           })
+          if (!res.ok) throw new Error("Get events failed")
+          const result = await res.json()
           return { events: result.items || [] }
         } catch (err: any) {
           console.warn("Calendar getEvents failed, returning simulated:", err.message)
-          return { events: getSimulatedEmails(userId) } // fallback simulated
+          return { events: getSimulatedEmails(userId) }
         }
       }
 
@@ -285,14 +284,7 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
           return { success: true, event: result }
         } catch (err: any) {
           console.warn("Calendar create failed, returning simulated:", err.message)
-          const simulated = saveSimulatedEmail(userId, {
-            to: "me",
-            subject: summary,
-            from: "me",
-            date: new Date().toLocaleDateString(),
-            snippet: `Event scheduled: ${summary}`
-          })
-          return { success: true, event: simulated, simulated: true }
+          return { success: true, simulated: true }
         }
       }
 
@@ -344,10 +336,6 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
     return { error: error.message || `Failed to execute tool ${name}` }
   }
 }
-
-// -------------------------------------------------------------
-// Anthropic Co-Pilot Implementation
-// -------------------------------------------------------------
 
 const SYSTEM_PROMPT = `You are the Veloce AI assistant — an intelligent productivity agent 
 with access to the user's Gmail and Google Calendar.
@@ -494,385 +482,156 @@ const ANTHROPIC_TOOLS = [
   }
 ]
 
-async function runAnthropicAgentLoop(
+export async function runAgentCoPilotStream(
   userId: string,
   userMessage: string,
-  onToken: (text: string) => void,
-  onLog: (text: string) => void
-) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    throw new Error("No Anthropic API key")
-  }
-
-  const messages: any[] = [{ role: "user", content: userMessage }]
-  let loopCount = 0
-
-  while (loopCount < 5) {
-    loopCount++
-    console.log(`[Anthropic Agent Loop] Calling Claude (turn ${loopCount})`)
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1500,
-        system: SYSTEM_PROMPT,
-        messages,
-        tools: ANTHROPIC_TOOLS
-      })
-    })
-
-    if (!res.ok) {
-      const errText = await res.text()
-      throw new Error(`Anthropic API failed: ${errText}`)
-    }
-
-    const responseData = await res.json()
-    const contentBlocks = responseData.content || []
-    
-    // Check if Assistant returned text or tool use
-    const textBlock = contentBlocks.find((b: any) => b.type === "text")
-    if (textBlock && textBlock.text) {
-      onToken(textBlock.text)
-    }
-
-    const toolUseBlocks = contentBlocks.filter((b: any) => b.type === "tool_use")
-    if (toolUseBlocks.length === 0) {
-      // Final text response reached
-      break
-    }
-
-    // Push Claude's response to the conversation history
-    messages.push({
-      role: "assistant",
-      content: contentBlocks
-    })
-
-    const toolResultContent: any[] = []
-
-    for (const block of toolUseBlocks) {
-      const { id, name, input } = block
-      onLog(`[tool] Executing ${name}...`)
-      
-      const output = await executeTool(userId, name, input)
-      
-      toolResultContent.push({
-        type: "tool_result",
-        tool_use_id: id,
-        content: JSON.stringify(output)
-      })
-    }
-
-    // Add tool results to the conversation history
-    messages.push({
-      role: "user",
-      content: toolResultContent
-    })
-  }
-}
-
-// -------------------------------------------------------------
-// Gemini Fallback Co-Pilot Implementation
-// -------------------------------------------------------------
-
-const GEMINI_TOOLS = [
-  {
-    functionDeclarations: ANTHROPIC_TOOLS.map((t: any) => ({
-      name: t.name,
-      description: t.description,
-      parameters: t.input_schema
-    }))
-  }
-]
-
-async function runGeminiAgentLoop(
-  userId: string,
-  userMessage: string,
-  onToken: (text: string) => void,
-  onLog: (text: string) => void
-) {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
-  if (!apiKey) {
-    throw new Error("No Gemini API key")
-  }
-
-  // 1. Initial tool selection request
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }]
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: userMessage }]
-          }
-        ],
-        tools: GEMINI_TOOLS,
-        toolConfig: {
-          functionCallingConfig: {
-            mode: "AUTO"
-          }
-        }
-      })
-    }
-  )
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Gemini tool selection failed: ${errorText}`)
-  }
-
-  const responseData = await response.json()
-  const candidate = responseData.candidates?.[0]
-  const part = candidate?.content?.parts?.[0]
-
-  if (part?.functionCall) {
-    const { name, args } = part.functionCall
-    onLog(`[tool] Executing ${name}...`)
-    
-    const toolResult = await executeTool(userId, name, args)
-
-    // Send tool result back to Gemini to stream final answer
-    const sseResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }]
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: userMessage }]
-            },
-            {
-              role: "model",
-              parts: [
-                {
-                  functionCall: {
-                    name,
-                    args
-                  }
-                }
-              ]
-            },
-            {
-              role: "function",
-              parts: [
-                {
-                  functionResponse: {
-                    name,
-                    response: { output: toolResult }
-                  }
-                }
-              ]
-            }
-          ],
-          tools: GEMINI_TOOLS
-        })
-      }
-    )
-
-    if (!sseResponse.ok) {
-      throw new Error("Failed to stream response from Gemini tool feedback")
-    }
-
-    const reader = sseResponse.body?.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
-
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() || ""
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith("data:")) continue
-
-          const jsonStr = trimmed.slice(5).trim()
-          if (jsonStr === "[DONE]") continue
-
-          try {
-            const parsed = JSON.parse(jsonStr)
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text
-            if (text) {
-              onToken(text)
-            }
-          } catch {}
-        }
-      }
-    }
-  } else {
-    // No tool calls needed, stream directly
-    const sseResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }]
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: userMessage }]
-            }
-          ]
-        })
-      }
-    )
-
-    if (!sseResponse.ok) {
-      throw new Error("Failed to stream standard response from Gemini")
-    }
-
-    const reader = sseResponse.body?.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
-
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() || ""
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith("data:")) continue
-
-          const jsonStr = trimmed.slice(5).trim()
-          if (jsonStr === "[DONE]") continue
-
-          try {
-            const parsed = JSON.parse(jsonStr)
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text
-            if (text) {
-              onToken(text)
-            }
-          } catch {}
-        }
-      }
-    }
-  }
-}
-
-// -------------------------------------------------------------
-// Unified Entry Points
-// -------------------------------------------------------------
-
-export async function chatWithGeminiStream(
-  userId: string,
-  userMessage: string,
-  context?: any
+  onToken?: (text: string) => void,
+  onLog?: (text: string) => void
 ): Promise<ReadableStream<string>> {
-  // Return standard stream (Gemini only)
   const apiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
   if (!apiKey) throw new Error("No Gemini key")
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }]
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: userMessage }]
-          }
-        ]
-      })
-    }
-  )
-
-  return new ReadableStream({
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream<string>({
     async start(controller) {
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-      if (!reader) {
-        controller.close()
-        return
+      const _onToken = (text: string) => {
+        if (onToken) onToken(text)
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}nn`) as any)
       }
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() || ""
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (trimmed.startsWith("data:")) {
-            try {
-              const parsed = JSON.parse(trimmed.slice(5).trim())
-              const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text
-              if (text) controller.enqueue(text)
-            } catch {}
-          }
-        }
-      }
-      controller.close()
-    }
-  })
-}
-
-/**
- * High-level router that executes either Anthropic agent loops or Gemini fallbacks,
- * yielding SSE logs of tool execution and streaming response text.
- */
-export async function runAgentCoPilotStream(
-  userId: string,
-  userMessage: string
-): Promise<ReadableStream<string>> {
-  return new ReadableStream({
-    async start(controller) {
-      const emitText = (text: string) => {
-        controller.enqueue(`data: ${JSON.stringify({ text })}\n\n`)
-      }
-      const emitLog = (log: string) => {
-        controller.enqueue(`data: ${JSON.stringify({ log })}\n\n`)
+      const _onLog = (log: string) => {
+        if (onLog) onLog(log)
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ log })}nn`) as any)
       }
 
       try {
-        if (process.env.ANTHROPIC_API_KEY) {
-          emitLog("System initializing Claude 3.5 Sonnet co-pilot...")
-          await runAnthropicAgentLoop(userId, userMessage, emitText, emitLog)
+        const GEMINI_TOOLS = [
+          {
+            functionDeclarations: ANTHROPIC_TOOLS.map((t: any) => ({
+              name: t.name,
+              description: t.description,
+              parameters: t.input_schema
+            }))
+          }
+        ]
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: SYSTEM_PROMPT }]
+              },
+              contents: [
+                {
+                  role: "user",
+                  parts: [{ text: userMessage }]
+                }
+              ],
+              tools: GEMINI_TOOLS,
+              toolConfig: {
+                functionCallingConfig: {
+                  mode: "AUTO"
+                }
+              }
+            })
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error("Gemini tool selection failed")
+        }
+
+        const responseData = await response.json()
+        const candidate = responseData.candidates?.[0]
+        const part = candidate?.content?.parts?.[0]
+
+        if (part?.functionCall) {
+          const { name, args } = part.functionCall
+          _onLog(`[tool] Executing ${name}...`)
+          
+          const toolResult = await executeTool(userId, name, args)
+
+          const sseResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                systemInstruction: {
+                  parts: [{ text: SYSTEM_PROMPT }]
+                },
+                contents: [
+                  {
+                    role: "user",
+                    parts: [{ text: userMessage }]
+                  },
+                  {
+                    role: "model",
+                    parts: [
+                      {
+                        functionCall: {
+                          name,
+                          args
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    role: "function",
+                    parts: [
+                      {
+                        functionResponse: {
+                          name,
+                          response: { output: toolResult }
+                        }
+                      }
+                    ]
+                  }
+                ],
+                tools: GEMINI_TOOLS
+              })
+            }
+          )
+
+          if (!sseResponse.ok) throw new Error("Failed to stream feedback")
+
+          const reader = sseResponse.body?.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ""
+
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split("n")
+              buffer = lines.pop() || ""
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (!trimmed.startsWith("data:")) continue
+                const jsonStr = trimmed.slice(5).trim()
+                if (jsonStr === "[DONE]") continue
+                try {
+                  const parsed = JSON.parse(jsonStr)
+                  const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text
+                  if (text) _onToken(text)
+                } catch {}
+              }
+            }
+          }
         } else {
-          emitLog("System initializing Gemini 2.5 Flash co-pilot...")
-          await runGeminiAgentLoop(userId, userMessage, emitText, emitLog)
+          // Direct response fallback
+          _onToken(part?.text || "")
         }
       } catch (err: any) {
-        console.error("Co-pilot loop error:", err)
-        controller.enqueue(`data: ${JSON.stringify({ error: err.message || "Execution error" })}\n\n`)
+        _onLog(`[error] ${err.message}`)
       } finally {
         controller.close()
       }
     }
   })
+
+  return stream
 }

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
-import { corsair } from "@/lib/corsair"
+import { getValidAccessToken } from "@/lib/auth/google"
 import { Redis } from "@upstash/redis"
 import { getSimulatedEmails, getSimulatedEvents } from "@/lib/simulated-data"
 
@@ -130,18 +130,24 @@ export async function detectConflicts(userId: string) {
     // 2. Fetch calendar events
     let events: any[] = []
     try {
-      const tenant = corsair.withTenant(userId)
       const tomorrow = new Date()
       tomorrow.setHours(0,0,0,0)
       const nextWeek = new Date(tomorrow)
       nextWeek.setDate(tomorrow.getDate() + 7)
 
-      const result = await tenant.googlecalendar.api.events.getMany({
-        calendarId: "primary",
-        timeMin: tomorrow.toISOString(),
-        timeMax: nextWeek.toISOString(),
-        singleEvents: true
+      const token = await getValidAccessToken(userId)
+      const calendarUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events")
+      calendarUrl.searchParams.set("timeMin", tomorrow.toISOString())
+      calendarUrl.searchParams.set("timeMax", nextWeek.toISOString())
+      calendarUrl.searchParams.set("singleEvents", "true")
+
+      const res = await fetch(calendarUrl.toString(), {
+        headers: { Authorization: `Bearer ${token}` }
       })
+
+      if (!res.ok) throw new Error("Failed to fetch events")
+      
+      const result = await res.json()
       events = result.items || []
     } catch {
       events = getSimulatedEvents(userId)

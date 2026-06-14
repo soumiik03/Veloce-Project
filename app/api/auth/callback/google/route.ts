@@ -1,42 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
-import { handleGoogleOAuth } from "@/services/auth/google"
-import { type GoogleOAuthProfile } from "@/lib/auth/oauth"
-import { cookies } from "next/headers"
-import { corsair } from "@/lib/corsair"
-import { processOAuthCallback } from "corsair/oauth"
-import { Redis } from "@upstash/redis"
+import { getSessionUser } from "@/lib/auth"
+import { db } from "@/db"
+import { googleAccounts, onboardingStatus } from "@/db/schema"
+import { eq } from "drizzle-orm"
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-})
+
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const code = searchParams.get("code")
-    const state = searchParams.get("state")
 
     if (!code) {
-      return NextResponse.json(
-        { error: "Authorization code not provided" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "No code provided" }, { status: 400 })
     }
 
-    // Check if this is a Corsair OAuth flow callback (state is not our static_state)
-    if (state && state !== "static_state") {
-      try {
-        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
-        await processOAuthCallback(corsair, {
-          code,
-          state,
-          redirectUri,
-        })
-        return NextResponse.redirect(new URL("/app/onboarding", req.url))
-      } catch (err) {
-        console.warn("Not a Corsair flow or state processing failed, falling back to normal Google login:", err)
-      }
+    const user = await getSessionUser(req)
+    if (!user) {
+      return NextResponse.redirect(new URL("/login", req.url))
     }
 
     const clientID = process.env.GOOGLE_CLIENT_ID
@@ -44,18 +25,12 @@ export async function GET(req: NextRequest) {
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
 
     if (!clientID || !clientSecret) {
-      return NextResponse.json(
-        { error: "Google OAuth is not configured on the server" },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: "Google OAuth not configured" }, { status: 500 })
     }
 
-    // Exchange auth code for tokens
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
         client_id: clientID,
@@ -67,80 +42,72 @@ export async function GET(req: NextRequest) {
 
     const tokenData = await tokenResponse.json()
     if (!tokenResponse.ok) {
-      console.error("[oauth/google] Token exchange failed:", tokenData)
-      return NextResponse.json(
-        { error: tokenData.error_description || "Token exchange failed" },
-        { status: 400 }
-      )
+      console.error("[oauth] Token exchange failed:", tokenData)
+      return NextResponse.json({ error: "Token exchange failed" }, { status: 400 })
     }
 
     const { access_token, refresh_token, expires_in, scope } = tokenData
+    const tokenExpiry = Math.floor(Date.now() / 1000) + expires_in
 
-    // Retrieve user profile data
-    const profileResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    })
+    // 1. Upsert google_accounts
+    const [existingAccount] = await db
+      .select()
+      .from(googleAccounts)
+      .where(eq(googleAccounts.userId, user.id))
+      .limit(1)
 
-    const profileData = await profileResponse.json()
-    if (!profileResponse.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch user profile from Google" },
-        { status: 400 }
-      )
+    if (existingAccount) {
+      await db
+        .update(googleAccounts)
+        .set({
+          accessToken: access_token,
+          refreshToken: refresh_token || existingAccount.refreshToken, // keep old if not provided
+          tokenExpiry,
+          scopes: scope,
+        })
+        .where(eq(googleAccounts.id, existingAccount.id))
+    } else {
+      await db
+        .insert(googleAccounts)
+        .values({
+          userId: user.id,
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          tokenExpiry,
+          scopes: scope,
+        })
     }
 
-    const profile: GoogleOAuthProfile = {
-      id: profileData.sub,
-      email: profileData.email,
-      name: profileData.name,
-      image: profileData.picture,
-      accessToken: access_token,
-      refreshToken: refresh_token || null,
-      accessTokenExpiresAt: new Date(Date.now() + expires_in * 1000),
-      scope: scope || null,
+    // 2. Upsert onboarding_status
+    const [status] = await db
+      .select()
+      .from(onboardingStatus)
+      .where(eq(onboardingStatus.userId, user.id))
+      .limit(1)
+
+    if (status) {
+      await db
+        .update(onboardingStatus)
+        .set({
+          connectedGmail: true,
+          connectedCalendar: true,
+          completedAt: new Date(),
+        })
+        .where(eq(onboardingStatus.userId, user.id))
+    } else {
+      await db
+        .insert(onboardingStatus)
+        .values({
+          userId: user.id,
+          connectedGmail: true,
+          connectedCalendar: true,
+          completedAt: new Date(),
+        })
     }
 
-    // Authenticate, save tokens to db, and provision Corsair tenant
-    const result = await handleGoogleOAuth(profile)
-
-    // Store JWT access/refresh tokens in secure cookies for direct auth
-    const cookieStore = await cookies()
-    cookieStore.set("accessToken", result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 15 * 60,
-      path: "/",
-    })
-    cookieStore.set("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60,
-      path: "/",
-    })
-    cookieStore.set("veloce_logged_in", "true", {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60,
-      path: "/",
-    })
-
-    // Mark onboarding as complete in Redis
-    await redis.set(`onboarding:${result.userId}`, "completed")
-
-    // Redirect user to the workspace dashboard
     return NextResponse.redirect(new URL("/app/chat", req.url))
-  } catch (error: unknown) {
-    const err = error as Error
-    console.error("[oauth/google] Error:", err)
-    return NextResponse.json(
-      { error: err.message || "OAuth callback failed" },
-      { status: 500 }
-    )
+  } catch (err: any) {
+    console.error("[oauth/callback] Error:", err)
+    return NextResponse.json({ error: err.message || "OAuth callback failed" }, { status: 500 })
   }
-}
-
-export async function POST() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 })
 }

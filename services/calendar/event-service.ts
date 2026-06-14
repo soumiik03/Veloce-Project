@@ -1,4 +1,4 @@
-import { corsair } from "@/lib/corsair"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 export type BusyWindow = {
   start: string
@@ -15,12 +15,27 @@ export async function getAvailability(userId: string, timeMin: string, timeMax: 
     throw new Error("userId, timeMin, and timeMax are required")
   }
 
-  const tenant = corsair.withTenant(userId)
+  const token = await getValidAccessToken(userId)
 
-  return tenant.googlecalendar.api.calendar.getAvailability({
-    timeMin,
-    timeMax,
+  // Use Google Calendar FreeBusy API
+  const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      timeMin,
+      timeMax,
+      items: [{ id: "primary" }]
+    })
   })
+
+  if (!res.ok) {
+    throw new Error("Failed to get availability")
+  }
+
+  return res.json()
 }
 
 export function generateCandidateSlots(

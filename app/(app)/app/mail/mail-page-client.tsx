@@ -59,22 +59,16 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
   const fetchThreads = async () => {
     setLoadingThreads(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
-      const headers = { "Authorization": `Bearer ${token || ""}` }
-      const res = await fetch("/api/emails?maxResults=20", { headers })
+      const res = await fetch("/api/emails?maxResults=20")
       if (res.ok) {
         const data = await res.json()
         if (data.threads) {
           // Cross reference with conflict detector state if needed (or detect simple vectors)
           const parsed: MailThread[] = data.threads.map((t: any) => ({
             ...t,
-            isReschedule: t.snippet.toLowerCase().includes("reschedule") || 
-                          t.snippet.toLowerCase().includes("conflict") ||
-                          t.subject.toLowerCase().includes("reschedule")
+            isReschedule: (t.snippet || "").toLowerCase().includes("reschedule") || 
+                          (t.snippet || "").toLowerCase().includes("conflict") ||
+                          (t.subject || "").toLowerCase().includes("reschedule")
           }))
           setThreads(parsed)
         }
@@ -110,15 +104,9 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
       setLoadingDetail(false)
       setLoadingAnalysis(true)
       try {
-        const token = document.cookie
-          .split("; ")
-          .find(row => row.startsWith("accessToken="))
-          ?.split("=")[1]
-        const headers = { "Authorization": `Bearer ${token || ""}` }
-
         // Fetch thread details
         setLoadingDetail(true)
-        const detailRes = await fetch(`/api/emails/${selectedThreadId}`, { headers })
+        const detailRes = await fetch(`/api/emails/${selectedThreadId}`)
         if (detailRes.ok) {
           const detailData = await detailRes.json()
           setThreadDetail(detailData.thread)
@@ -126,7 +114,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
         setLoadingDetail(false)
 
         // Fetch AI Analysis summary
-        const analysisRes = await fetch(`/api/emails/${selectedThreadId}/analysis`, { headers })
+        const analysisRes = await fetch(`/api/emails/${selectedThreadId}/analysis`)
         if (analysisRes.ok) {
           const analysisData = await analysisRes.json()
           setAnalysis(analysisData)
@@ -162,14 +150,9 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     }
     setLoadingThreads(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-      const headers = { "Authorization": `Bearer ${token || ""}` }
       const res = await fetch(`/api/agent`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: `/search ${searchQuery}` })
       })
       // Let's reload threads list from standard list and filter locally
@@ -181,10 +164,10 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
 
   // Filter threads based on Search Query locally
   const filteredThreads = threads.filter(t => {
-    if (activeFolder === "sent") return t.from.includes("me") || t.from.includes("Soumik")
-    const matchQuery = t.subject.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                       t.from.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                       t.snippet.toLowerCase().includes(searchQuery.toLowerCase())
+    if (activeFolder === "sent") return (t.from || "").includes("me") || (t.from || "").includes("Soumik")
+    const matchQuery = (t.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                       (t.from || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                       (t.snippet || "").toLowerCase().includes(searchQuery.toLowerCase())
     return matchQuery
   })
 
@@ -199,20 +182,10 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     const content = latestMessage.snippet || latestMessage.content || ""
 
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
-      const prompt = `Draft a polite reply to the following email thread. Write only the email body response itself without subject lines or prefix greetings.
-      Subject: ${subject}
-      Email Body: ${content}`
-
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token || ""}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ message: prompt })
       })
@@ -261,16 +234,10 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     if (!replyText.trim() || !selectedThreadId) return
     setDraftingAI(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
       const res = await fetch(`/api/agent`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token || ""}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           message: replyText,
@@ -282,9 +249,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
         setReplyText("")
         alert("Reply successfully sent!")
         // Reload details
-        const detailRes = await fetch(`/api/emails/${selectedThreadId}`, { 
-          headers: { "Authorization": `Bearer ${token || ""}` } 
-        })
+        const detailRes = await fetch(`/api/emails/${selectedThreadId}`)
         if (detailRes.ok) {
           const detailData = await detailRes.json()
           setThreadDetail(detailData.thread)
@@ -309,18 +274,12 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     setComposeContent("")
     setWritingAI(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
       const prompt = `Write a clean professional email with the subject "${composeSubject}". Please output only the email body without any email header tokens.`
 
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token || ""}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ message: prompt })
       })
@@ -371,16 +330,10 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     }
     setSendingMail(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
       const res = await fetch("/api/emails", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token || ""}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           to: composeTo,
@@ -422,24 +375,10 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     setAiChatLogs(prev => [...prev, { role: "user", text: query }])
 
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
-      const threadContext = threadDetail 
-        ? `Thread context subject: "${threadDetail.subject || ""}". Latest messages: ${JSON.stringify(threadDetail.messages || threadDetail)}`
-        : ""
-
-      const prompt = `You are discussing an email thread with the user.
-      Context: ${threadContext}
-      User Question: ${query}`
-
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token || ""}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ message: prompt })
       })

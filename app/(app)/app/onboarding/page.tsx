@@ -1,24 +1,31 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 
 export default function OnboardingPage() {
+  const router = useRouter()
   const [gmailConnected, setGmailConnected] = useState(false)
   const [calendarConnected, setCalendarConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
 
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/corsair/status")
+      const res = await fetch("/api/onboarding/status")
+      if (res.status === 401) {
+        setLoading(false)
+        return
+      }
       if (res.ok) {
         const data = await res.json()
         setGmailConnected(data.gmail)
         setCalendarConnected(data.googlecalendar)
-        
-        // If both connected, redirect to dashboard
+
+        // The middleware should prevent us from even seeing this page if both are connected,
+        // but just in case we land here and they are connected, redirect.
         if (data.gmail && data.googlecalendar) {
-          window.location.href = "/app/chat"
+          router.push("/app/chat")
         }
       }
     } catch (err) {
@@ -26,19 +33,12 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     checkStatus()
-    
-    // Poll status in background
-    const interval = setInterval(() => {
-      checkStatus()
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [])
+  }, [checkStatus])
 
   const handleConnect = () => {
     setConnecting(true)
@@ -146,7 +146,7 @@ export default function OnboardingPage() {
         </button>
 
         <button
-          onClick={() => window.location.href = "/app/chat"}
+          onClick={() => router.push("/app/chat")}
           className="text-[10.5px] font-mono text-neutral-500 hover:text-white underline cursor-pointer transition-colors"
         >
           Bypass to Console

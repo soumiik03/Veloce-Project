@@ -1,7 +1,6 @@
-import { corsair } from "@/lib/corsair"
 import type { MeetingIntent } from "./thread-parser"
-
 import { getThreadMessages } from "./thread-reader"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 function base64UrlEncode(input: string) {
     return Buffer.from(input)
@@ -52,7 +51,7 @@ export async function createReplyDraft(input: {
         throw new Error("userId, to, and subject are required")
     }
 
-    const tenant = corsair.withTenant(userId)
+    const token = await getValidAccessToken(userId)
 
     const body = intent.isRescheduleRequest
         ? "Thanks for the update. I’m checking availability and will suggest the best time shortly."
@@ -66,14 +65,21 @@ export async function createReplyDraft(input: {
         })
     )
 
-    return tenant.gmail.api.drafts.create({
-        userId: "me",
-        draft: {
-            message: {
-                raw,
-            },
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
         },
+        body: JSON.stringify({
+            message: { raw }
+        })
     })
+
+    if (!res.ok) {
+        throw new Error("Failed to create draft")
+    }
+    return res.json()
 }
 
 export async function sendDraftReply(input: {
@@ -86,12 +92,23 @@ export async function sendDraftReply(input: {
         throw new Error("userId and draftId are required")
     }
 
-    const tenant = corsair.withTenant(userId)
+    const token = await getValidAccessToken(userId)
 
-    return tenant.gmail.api.drafts.send({
-        userId: "me",
-        id: draftId,
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts/send", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            id: draftId
+        })
     })
+
+    if (!res.ok) {
+        throw new Error("Failed to send draft")
+    }
+    return res.json()
 }
 
 export async function sendThreadReply(input: {
@@ -128,7 +145,6 @@ export async function sendThreadReply(input: {
 
     const messageId = getHeader("message-id")
 
-    const tenant = corsair.withTenant(userId)
     const raw = base64UrlEncode(
         buildEmailReply({
             to,
@@ -138,9 +154,22 @@ export async function sendThreadReply(input: {
         })
     )
 
-    return tenant.gmail.api.messages.send({
-        userId: "me",
-        raw,
-        threadId,
+    const token = await getValidAccessToken(userId)
+
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            raw,
+            threadId,
+        })
     })
+
+    if (!res.ok) {
+        throw new Error("Failed to send thread reply")
+    }
+    return res.json()
 }

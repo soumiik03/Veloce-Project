@@ -2,7 +2,7 @@ import { detectMeetingIntentFromThread } from "./detect-meeting"
 import { recommendAlternativeSlot } from "./recommend-slot"
 import { createNegotiationDraft } from "./create-draft"
 import { createGoogleCalendarEvent, updateGoogleCalendarEvent } from "@/services/calendar/google-calendar"
-import { corsair } from "@/lib/corsair"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 export type OrchestrateInput = {
   userId: string
@@ -48,26 +48,31 @@ export async function orchestrateReschedule(input: OrchestrateInput) {
       const cleanSubject = searchSubject.replace(/^Re:\s*/i, "").trim()
       
       if (cleanSubject) {
-        const tenant = corsair.withTenant(userId)
+        const token = await getValidAccessToken(userId)
         const now = new Date()
         const futureLimit = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         
-        const searchResult = await tenant.googlecalendar.api.events.getMany({
-          calendarId,
-          q: cleanSubject,
-          timeMin: now.toISOString(),
-          timeMax: futureLimit.toISOString(),
-          singleEvents: true,
+        const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`)
+        url.searchParams.set("q", cleanSubject)
+        url.searchParams.set("timeMin", now.toISOString())
+        url.searchParams.set("timeMax", futureLimit.toISOString())
+        url.searchParams.set("singleEvents", "true")
+
+        const res = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${token}` }
         })
         
-        if (searchResult.items && searchResult.items.length > 0) {
-          const matchedEvent = searchResult.items.find(
-            (evt: any) => evt.summary?.toLowerCase() === cleanSubject.toLowerCase()
-          ) || searchResult.items[0]
-          
-          if (matchedEvent && matchedEvent.id) {
-            targetEventId = matchedEvent.id
-            console.log(`[orchestrateReschedule] Automatically matched subject "${cleanSubject}" to event ID: ${targetEventId}`)
+        if (res.ok) {
+          const searchResult = await res.json()
+          if (searchResult.items && searchResult.items.length > 0) {
+            const matchedEvent = searchResult.items.find(
+              (evt: any) => evt.summary?.toLowerCase() === cleanSubject.toLowerCase()
+            ) || searchResult.items[0]
+            
+            if (matchedEvent && matchedEvent.id) {
+              targetEventId = matchedEvent.id
+              console.log(`[orchestrateReschedule] Automatically matched subject "${cleanSubject}" to event ID: ${targetEventId}`)
+            }
           }
         }
       }

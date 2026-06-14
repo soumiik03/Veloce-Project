@@ -43,18 +43,12 @@ export function CalendarPageClient() {
   const fetchEvents = async () => {
     setLoading(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-      const headers = { "Authorization": `Bearer ${token || ""}` }
-      
       const tomorrow = new Date()
       tomorrow.setHours(0, 0, 0, 0)
       const endRange = new Date(tomorrow)
       endRange.setDate(tomorrow.getDate() + 7)
 
-      const res = await fetch(`/api/calendar/events?timeMin=${tomorrow.toISOString()}&timeMax=${endRange.toISOString()}`, { headers })
+      const res = await fetch(`/api/calendar/events?timeMin=${tomorrow.toISOString()}&timeMax=${endRange.toISOString()}`)
       if (res.ok) {
         const data = await res.json()
         if (data.items) {
@@ -72,12 +66,7 @@ export function CalendarPageClient() {
   const fetchConflicts = async () => {
     setLoadingConflicts(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-      const headers = { "Authorization": `Bearer ${token || ""}` }
-      const res = await fetch("/api/calendar/conflicts", { headers })
+      const res = await fetch("/api/calendar/conflicts")
       if (res.ok) {
         const data = await res.json()
         if (data.conflicts) {
@@ -133,14 +122,8 @@ export function CalendarPageClient() {
   const handleDeleteEvent = async (eventId: string) => {
     if (!confirm("Are you sure you want to delete this event?")) return
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-      const headers = { "Authorization": `Bearer ${token || ""}` }
       const res = await fetch(`/api/calendar/events/${eventId}`, {
-        method: "DELETE",
-        headers
+        method: "DELETE"
       })
       if (res.ok) {
         setEvents(prev => prev.filter(e => e.id !== eventId))
@@ -157,22 +140,12 @@ export function CalendarPageClient() {
     if (!activeConflict || resolving) return
     setResolving(true)
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-      const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token || ""}`
-      }
-
       // Calculate end time (default to 30 mins later)
       const endDateTime = new Date(new Date(chosenSlot).getTime() + 30 * 60 * 1000).toISOString()
 
-      // 1. PATCH Google Calendar Event
       const patchRes = await fetch(`/api/calendar/events/${activeConflict.currentEventId}`, {
         method: "PATCH",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event: {
             start: { dateTime: chosenSlot },
@@ -185,7 +158,7 @@ export function CalendarPageClient() {
       const replyBody = `Hi, I have rescheduled our meeting "${activeConflict.currentEventSummary}" to Friday at ${new Date(chosenSlot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Please verify. Thanks!`
       await fetch(`/api/emails`, {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: activeConflict.sender,
           subject: `Rescheduled: ${activeConflict.emailSubject}`,
@@ -219,16 +192,10 @@ export function CalendarPageClient() {
     setQuickCreateLogs(["[TELEMETRY] Intercepting natural language command...", `[PROMPT] "${input}"`])
 
     try {
-      const token = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("accessToken="))
-        ?.split("=")[1]
-
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token || ""}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ message: input })
       })

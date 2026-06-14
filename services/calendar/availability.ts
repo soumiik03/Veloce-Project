@@ -1,4 +1,4 @@
-import { corsair } from "@/lib/corsair"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 export type TimeSlot = {
   start: string
@@ -15,14 +15,26 @@ export async function getFreeBusySlots(userId: string, timeMin: string, timeMax:
     throw new Error("userId, timeMin, and timeMax are required")
   }
 
-  const tenant = corsair.withTenant(userId)
+  const token = await getValidAccessToken(userId)
 
-  const result = await tenant.googlecalendar.api.calendar.getAvailability({
-    timeMin,
-    timeMax,
+  const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      timeMin,
+      timeMax,
+      items: [{ id: "primary" }]
+    })
   })
 
-  return result
+  if (!res.ok) {
+    throw new Error("Failed to get free/busy slots")
+  }
+
+  return res.json()
 }
 
 export function generateCandidateSlots(

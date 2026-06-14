@@ -1,4 +1,4 @@
-import { corsair } from "@/lib/corsair"
+import { getValidAccessToken } from "@/lib/auth/google"
 
 function base64UrlEncode(input: string) {
   return Buffer.from(input)
@@ -46,7 +46,7 @@ export async function createNegotiationDraft(input: {
   messageId?: string | null
 }) {
   const { userId, to, subject, slot, threadId, messageId } = input
-  const tenant = corsair.withTenant(userId)
+  const token = await getValidAccessToken(userId)
 
   let body = ""
   if (slot) {
@@ -66,13 +66,23 @@ export async function createNegotiationDraft(input: {
     })
   )
 
-  return tenant.gmail.api.drafts.create({
-    userId: "me",
-    draft: {
-      message: {
-        raw,
-        threadId,
-      },
+  const payload: any = { message: { raw } }
+  if (threadId) {
+    payload.message.threadId = threadId
+  }
+
+  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
     },
+    body: JSON.stringify(payload)
   })
+
+  if (!res.ok) {
+    throw new Error("Failed to create negotiation draft")
+  }
+
+  return res.json()
 }

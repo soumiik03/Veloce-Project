@@ -1,14 +1,11 @@
 import { pgTable, text, uuid, timestamp } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
-  id:               uuid().defaultRandom().primaryKey(),
-  email:            text().unique().notNull(),
-  emailVerified:    timestamp({ withTimezone: true }),          
-  password:         text(),                                     
-  name:             text(),
-  image:            text(),                                     
-  createdAt:        timestamp({ withTimezone: true }).defaultNow().notNull(),
-  updatedAt:        timestamp({ withTimezone: true }).defaultNow().$onUpdate(() => new Date()),
+  id: uuid('id').defaultRandom().primaryKey(),
+  clerkId: text('clerk_id').unique().notNull(),
+  email: text('email').notNull(),
+  name: text('name'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
 export type User = typeof users.$inferSelect
