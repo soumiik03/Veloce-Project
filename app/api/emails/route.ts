@@ -1,44 +1,36 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAccessToken, extractTokenFromHeader } from "@/lib/auth/jwt"
+import { getSessionUser } from "@/lib/auth"
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
-import { getSimulatedEmails } from "@/lib/simulated-data"
+import { getSimulatedEmails, saveSimulatedEmail } from "@/lib/simulated-data"
 import { corsair } from "@/lib/corsair"
+import { ensureGoogleTokens } from "@/services/auth/google"
 
 export async function GET(req: NextRequest) {
   let userId = ""
   try {
-    const authHeader = req.headers.get("Authorization")
-    let token = extractTokenFromHeader(authHeader)
-    if (!token) {
-      token = req.cookies.get("accessToken")?.value || null
-    }
-
-    if (!token) {
+    const user = await getSessionUser(req)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const payload = verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
-    }
-    userId = payload.userId
+    userId = user.id
 
     const { searchParams } = new URL(req.url)
     const maxResults = parseInt(searchParams.get("maxResults") || "10")
 
-    const listResult = await listInboxThreads(payload.userId, maxResults)
-    const messages = listResult.messages || []
+    await ensureGoogleTokens(userId)
+    const listResult = await listInboxThreads(user.id, maxResults)
+    const messages = (listResult.messages || []) as Array<{ threadId: string }>
 
-    const threadIds = Array.from(new Set(messages.map((m: any) => m.threadId)))
+    const threadIds = Array.from(new Set(messages.map((m) => m.threadId)))
     const threads = await Promise.all(
-      threadIds.slice(0, 8).map(async (threadId: any) => {
+      threadIds.slice(0, 8).map(async (threadId: string) => {
         try {
-          const detail = await getThreadMessages(payload.userId, threadId)
+          const detail = await getThreadMessages(user.id, threadId)
           if (!detail || !detail.messages || detail.messages.length === 0) return null
           const latest = detail.messages[detail.messages.length - 1]
-          const headers = latest.payload?.headers || []
+          const headers = (latest.payload?.headers || []) as Array<{ name: string; value: string }>
           const getHeader = (name: string) => {
-            const h = headers.find((x: any) => x.name.toLowerCase() === name.toLowerCase())
+            const h = headers.find((x) => x.name.toLowerCase() === name.toLowerCase())
             return h ? h.value : null
           }
           return {
@@ -58,40 +50,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       threads: threads.filter(Boolean),
     })
-  } catch (error: any) {
-    console.error("[api/emails] GET Error, returning simulated emails:", error.message || error)
+  } catch (error) {
+    const err = error as Error
+    console.error("[api/emails] GET Error, returning simulated emails:", err.message || String(err))
     if (userId) {
       try {
         const simulated = getSimulatedEmails(userId)
         return NextResponse.json({ threads: simulated }, { status: 200 })
-      } catch (fallbackErr: any) {
+      } catch (fallbackErr) {
         console.error("Failed to load simulated emails:", fallbackErr)
       }
     }
-    return NextResponse.json({ error: error.message || "Failed to list emails" }, { status: 500 })
+    return NextResponse.json({ error: err.message || "Failed to list emails" }, { status: 500 })
   }
 }
 
 export async function POST(req: NextRequest) {
   let userId = ""
   try {
-    const authHeader = req.headers.get("Authorization")
-    let token = extractTokenFromHeader(authHeader)
-    if (!token) {
-      token = req.cookies.get("accessToken")?.value || null
-    }
-
-    if (!token) {
+    const user = await getSessionUser(req)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    userId = user.id
 
-    const payload = verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
-    }
-    userId = payload.userId
-
-    const body = await req.json()
+    const body = (await req.json()) as { to?: string; cc?: string; bcc?: string; subject?: string; content?: string }
     const { to, cc, bcc, subject, content } = body
 
     if (!to || !subject || !content) {
@@ -99,6 +82,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      await ensureGoogleTokens(userId)
       const tenant = corsair.withTenant(userId)
       
       const buildEmailRaw = () => {
@@ -124,10 +108,10 @@ export async function POST(req: NextRequest) {
       })
 
       return NextResponse.json({ success: true }, { status: 200 })
-    } catch (apiErr: any) {
-      console.warn("[api/emails] Google API send failed, using simulated mock:", apiErr.message)
+    } catch (apiErr) {
+      const err = apiErr as Error
+      console.warn("[api/emails] Google API send failed, using simulated mock:", err.message)
       // Save simulated email to mock DB
-      const { saveSimulatedEmail } = require("@/lib/simulated-data")
       saveSimulatedEmail(userId, {
         to,
         from: "me",
@@ -137,8 +121,9 @@ export async function POST(req: NextRequest) {
       })
       return NextResponse.json({ success: true, simulated: true }, { status: 200 })
     }
-  } catch (error: any) {
-    console.error("[api/emails] POST send Error:", error)
-    return NextResponse.json({ error: error.message || "Failed to send email" }, { status: 500 })
+  } catch (error) {
+    const err = error as Error
+    console.error("[api/emails] POST send Error:", err)
+    return NextResponse.json({ error: err.message || "Failed to send email" }, { status: 500 })
   }
 }

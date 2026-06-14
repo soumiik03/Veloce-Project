@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAccessToken, extractTokenFromHeader } from "@/lib/auth/jwt"
+import { getSessionUser } from "@/lib/auth"
 import { sendDraftReply } from "@/services/mail/draft-reply"
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("Authorization")
-    let token = extractTokenFromHeader(authHeader)
-    if (!token) {
-      token = req.cookies.get("accessToken")?.value || null
-    }
-
-    if (!token) {
+    const user = await getSessionUser(req)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const payload = verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
     }
 
     const body = await req.json()
@@ -27,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await sendDraftReply({
-      userId: payload.userId,
+      userId: user.id,
       draftId,
     })
 

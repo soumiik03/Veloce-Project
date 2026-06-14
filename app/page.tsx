@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { Show, UserButton } from "@clerk/nextjs"
 
 export default function Home() {
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null)
@@ -81,24 +82,35 @@ export default function Home() {
 
           {/* Right: Actions */}
           <div className="flex items-center justify-end gap-4">
-            <Link
-              href="/login"
-              className="text-[13px] font-medium text-neutral-350 hover:text-white transition-colors duration-200"
-            >
-              Sign in
-            </Link>
-            <a
-              href="mailto:sales@veloce.ai"
-              className="hidden sm:inline-flex items-center justify-center px-4 py-1.5 rounded-full border border-white/10 hover:border-white/20 text-[13px] font-medium text-neutral-250 hover:text-white hover:bg-white/5 transition-all duration-200"
-            >
-              Contact sales
-            </a>
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-[13px] font-semibold transition-all duration-200"
-            >
-              Get started
-            </Link>
+            <Show when="signed-out">
+              <Link
+                href="/login"
+                className="text-[13px] font-medium text-neutral-350 hover:text-white transition-colors duration-200"
+              >
+                Sign in
+              </Link>
+              <a
+                href="mailto:sales@veloce.ai"
+                className="hidden sm:inline-flex items-center justify-center px-4 py-1.5 rounded-full border border-white/10 hover:border-white/20 text-[13px] font-medium text-neutral-250 hover:text-white hover:bg-white/5 transition-all duration-200"
+              >
+                Contact sales
+              </a>
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-[13px] font-semibold transition-all duration-200"
+              >
+                Get started
+              </Link>
+            </Show>
+            <Show when="signed-in">
+              <Link
+                href="/app/chat"
+                className="text-[13px] font-medium text-neutral-350 hover:text-white transition-colors duration-200 mr-2"
+              >
+                Console
+              </Link>
+              <UserButton />
+            </Show>
           </div>
         </div>
       </nav>

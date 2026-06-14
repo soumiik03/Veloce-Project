@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAccessToken, extractTokenFromHeader, isDynamicUsageError } from "@/lib/auth/jwt"
+import { getSessionUser } from "@/lib/auth"
+import { isDynamicUsageError } from "@/lib/auth/jwt"
 import { getThreadMessages } from "@/services/mail/thread-reader"
 import { getSimulatedEmails } from "@/lib/simulated-data"
 
@@ -9,21 +10,11 @@ export async function GET(
 ) {
   try {
     const { threadId } = await params
-    const authHeader = req.headers.get("Authorization")
-    let token = extractTokenFromHeader(authHeader)
-    if (!token) {
-      token = req.cookies.get("accessToken")?.value || null
-    }
-
-    if (!token) {
+    const user = await getSessionUser(req)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const payload = verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
-    }
-    const userId = payload.userId
+    const userId = user.id
 
     // Get thread content
     let subject = ""

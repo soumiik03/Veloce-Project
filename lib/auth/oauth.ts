@@ -12,6 +12,7 @@ export interface GoogleOAuthProfile {
   accessToken: string
   refreshToken?: string | null
   accessTokenExpiresAt?: Date
+  scope?: string | null
 }
 
 export async function validatePassword(email: string, password: string) {
@@ -55,6 +56,7 @@ export async function upsertGoogleAccount(
           access_token: googleAccessToken,
           ...(googleRefreshToken ? { refresh_token: googleRefreshToken } : {}),
           expires_at: expiresAt,
+          ...(profile.scope ? { scope: profile.scope } : {}),
           updatedAt: new Date(),
         })
         .where(eq(accounts.id, existingAccount[0].id))
@@ -89,6 +91,7 @@ export async function upsertGoogleAccount(
         access_token: googleAccessToken,
         refresh_token: googleRefreshToken || null,
         expires_at: expiresAt,
+        scope: profile.scope || null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -125,6 +128,7 @@ export async function upsertGoogleAccount(
       access_token: googleAccessToken,
       refresh_token: googleRefreshToken || null,
       expires_at: expiresAt,
+      scope: profile.scope || null,
       createdAt: now,
       updatedAt: now,
     })

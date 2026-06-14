@@ -57,14 +57,10 @@ export function ClientAuthWrapper({ children }: { children: React.ReactNode }) {
   // Check auth and redirect if needed
   useEffect(() => {
     if (!mounted) return
-    const isAuth = document.cookie.split("; ").some(row => {
-      const trimmed = row.trim()
-      return trimmed.startsWith("veloce_logged_in=") || trimmed.includes("session-token=") || trimmed.startsWith("accessToken=")
-    })
-    if (!isAuth && !authLoading) {
+    if (!user && !authLoading) {
       window.location.href = "/"
     }
-  }, [authLoading, mounted])
+  }, [authLoading, mounted, user])
 
   const handleConnect = async (plugin: "gmail" | "googlecalendar") => {
     setConnectingPlugin(plugin)

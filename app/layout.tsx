@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import NeuroBackground from "@/components/neuro-background"
 import { Suspense } from "react"
+import { ClerkProvider } from "@clerk/nextjs"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -30,16 +31,18 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col relative bg-[#030712]">
-        <NeuroBackground />
-        <div className="relative z-10 min-h-screen flex flex-col">
-          <Suspense fallback={
-            <div className="flex-1 flex items-center justify-center bg-[#030712] text-[#888888] font-mono text-[13px] h-screen">
-              INITIALIZING VELOCE SYSTEM...
-            </div>
-          }>
-            {children}
-          </Suspense>
-        </div>
+        <ClerkProvider>
+          <NeuroBackground />
+          <div className="relative z-10 min-h-screen flex flex-col">
+            <Suspense fallback={
+              <div className="flex-1 flex items-center justify-center bg-[#030712] text-[#888888] font-mono text-[13px] h-screen">
+                INITIALIZING VELOCE SYSTEM...
+              </div>
+            }>
+              {children}
+            </Suspense>
+          </div>
+        </ClerkProvider>
       </body>
     </html>
   )

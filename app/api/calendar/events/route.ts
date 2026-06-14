@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyAccessToken, extractTokenFromHeader } from "@/lib/auth/jwt"
+import { getSessionUser } from "@/lib/auth"
 import { createGoogleCalendarEvent } from "@/services/calendar/google-calendar"
 import { corsair } from "@/lib/corsair"
 import { getSimulatedEvents, saveSimulatedEvent } from "@/lib/simulated-data"
+import { ensureGoogleTokens } from "@/services/auth/google"
 
 export async function POST(req: NextRequest) {
   let userId = ""
-  let eventPayload: any = null
+  let eventPayload: unknown = null
   try {
-    const authHeader = req.headers.get("Authorization")
-    let token = extractTokenFromHeader(authHeader)
-    if (!token) {
-      token = req.cookies.get("accessToken")?.value || null
-    }
-
-    if (!token) {
+    const user = await getSessionUser(req)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const payload = verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
-    }
-    userId = payload.userId
+    userId = user.id
 
     const body = await req.json()
     const { event, calendarId } = body
@@ -32,52 +23,52 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Event payload is required" }, { status: 400 })
     }
 
+    await ensureGoogleTokens(userId)
     const result = await createGoogleCalendarEvent(userId, event, calendarId)
     return NextResponse.json(result, { status: 201 })
-  } catch (error: any) {
-    console.error("[calendar/events] POST Error, trying simulated fallback:", error.message || error)
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error("[calendar/events] POST Error, trying simulated fallback:", err.message || err)
     if (userId && eventPayload) {
       try {
+        const payload = eventPayload as {
+          summary?: string
+          start?: { dateTime?: string }
+          end?: { dateTime?: string }
+          attendees?: { email: string }[]
+        }
         const newEvent = saveSimulatedEvent(userId, {
-          summary: eventPayload.summary || "Rescheduled Meeting",
-          start: eventPayload.start || { dateTime: new Date().toISOString() },
-          end: eventPayload.end || { dateTime: new Date(Date.now() + 1800000).toISOString() },
-          attendees: eventPayload.attendees || [],
+          summary: payload.summary || "Rescheduled Meeting",
+          start: { dateTime: payload.start?.dateTime || new Date().toISOString() },
+          end: { dateTime: payload.end?.dateTime || new Date(Date.now() + 1800000).toISOString() },
+          attendees: payload.attendees || [],
           status: "confirmed"
         })
         return NextResponse.json(newEvent, { status: 201 })
-      } catch (fallbackErr: any) {
-        console.error("Failed to save simulated event:", fallbackErr)
+      } catch (fallbackErr: unknown) {
+        const fErr = fallbackErr as Error
+        console.error("Failed to save simulated event:", fErr)
       }
     }
-    return NextResponse.json({ error: error.message || "Failed to create event" }, { status: 500 })
+    return NextResponse.json({ error: err.message || "Failed to create event" }, { status: 500 })
   }
 }
 
 export async function GET(req: NextRequest) {
   let userId = ""
   try {
-    const authHeader = req.headers.get("Authorization")
-    let token = extractTokenFromHeader(authHeader)
-    if (!token) {
-      token = req.cookies.get("accessToken")?.value || null
-    }
-
-    if (!token) {
+    const user = await getSessionUser(req)
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const payload = verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
-    }
-    userId = payload.userId
+    userId = user.id
 
     const { searchParams } = new URL(req.url)
     const calendarId = searchParams.get("calendarId") || "primary"
     const timeMin = searchParams.get("timeMin") || new Date().toISOString()
     const timeMax = searchParams.get("timeMax") || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
+    await ensureGoogleTokens(userId)
     const tenant = corsair.withTenant(userId)
     const result = await tenant.googlecalendar.api.events.getMany({
       calendarId,
@@ -87,16 +78,18 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json(result, { status: 200 })
-  } catch (error: any) {
-    console.error("[calendar/events] GET Error, returning simulated events:", error.message || error)
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error("[calendar/events] GET Error, returning simulated events:", err.message || err)
     if (userId) {
       try {
         const simulated = getSimulatedEvents(userId)
         return NextResponse.json({ items: simulated }, { status: 200 })
-      } catch (fallbackErr: any) {
-        console.error("Failed to load simulated events:", fallbackErr)
+      } catch (fallbackErr: unknown) {
+        const fErr = fallbackErr as Error
+        console.error("Failed to load simulated events:", fErr)
       }
     }
-    return NextResponse.json({ error: error.message || "Failed to list events" }, { status: 500 })
+    return NextResponse.json({ error: err.message || "Failed to list events" }, { status: 500 })
   }
 }

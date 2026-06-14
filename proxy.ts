@@ -1,144 +1,101 @@
-import { auth } from "@/lib/auth"
-import type { NextRequest } from "next/server"
-import { NextResponse } from "next/server"
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { Redis } from "@upstash/redis"
-import { applyRateLimit, loginRateLimit } from "@/lib/rate-limit"
-import { verifyAccessToken } from "@/lib/auth/jwt"
+import { NextResponse } from "next/server"
+import { verifyAccessToken } from "./lib/auth/jwt"
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 })
 
-export async function proxy(req: NextRequest) {
-  console.log("PROXY REQUEST:", {
-    url: req.url,
-    phase: process.env.NEXT_PHASE,
-    headers: Array.from(req.headers.entries())
-  })
+// Define paths that require authentication
+const isProtectedRoute = createRouteMatcher([
+  "/app(.*)",
+  "/api/emails(.*)",
+  "/api/calendar(.*)",
+  "/api/agent(.*)",
+])
 
+export default clerkMiddleware(async (auth, req) => {
+  // Bypass auth checks during production builds
   if (process.env.NEXT_PHASE === "phase-production-build") {
     return NextResponse.next()
   }
 
-  const { nextUrl } = req
-  const { pathname } = nextUrl
+  const { pathname } = req.nextUrl
 
-  // 1. Rate limit login attempts to credentials callback
-  if (pathname === "/api/auth/callback/credentials" && req.method === "POST") {
-    const rateLimit = await applyRateLimit(req, loginRateLimit)
-    if (rateLimit.limited) return rateLimit.response
-  }
+  if (isProtectedRoute(req)) {
+    const session = await auth()
+    let hasSession = !!session.userId
 
-  // 2. Allow standard NextAuth API endpoints (/api/auth/*) without checks
-  if (pathname.startsWith("/api/auth")) {
-    return NextResponse.next()
-  }
-
-  // 3. Get session via NextAuth auth() helper and custom JWT fallback
-  const session = await auth()
-  let isLoggedIn = !!session?.user
-  let userId = session?.user?.id
-
-  if (!isLoggedIn) {
-    const token = req.cookies.get("accessToken")?.value
-    if (token) {
-      try {
-        const payload = verifyAccessToken(token)
+    if (!hasSession) {
+      const accessToken = req.cookies.get("accessToken")?.value
+      if (accessToken) {
+        const payload = verifyAccessToken(accessToken)
         if (payload) {
-          isLoggedIn = true
-          userId = payload.userId
+          hasSession = true
         }
-      } catch (e) {
-        console.error("Failed to verify access token in proxy:", e)
-      }
-    }
-  }
-
-  // 4. Handle public routes
-  if (pathname === "/") {
-    return NextResponse.next()
-  }
-
-  // 5. Handle auth pages (/login, /register)
-  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register")
-  if (isAuthRoute) {
-    if (isLoggedIn) {
-      const response = NextResponse.redirect(new URL("/app/chat", nextUrl))
-      if (!req.cookies.has("veloce_logged_in")) {
-        response.cookies.set("veloce_logged_in", "true", {
-          httpOnly: false,
-          secure: process.env.NODE_ENV === "production",
-          maxAge: 7 * 24 * 60 * 60,
-          path: "/",
-        })
-      }
-      return response
-    }
-    return NextResponse.next()
-  }
-
-  // 6. Protect `/app/*` namespace and handle onboarding state
-  if (pathname.startsWith("/app")) {
-    if (!isLoggedIn || !userId) {
-      const redirectUrl = new URL("/login", nextUrl)
-      redirectUrl.searchParams.set("callbackUrl", pathname)
-      return NextResponse.redirect(redirectUrl)
-    }
-
-    // Check onboarding completion in Redis
-    const isOnboardingCompleted = await redis.get(`onboarding:${userId}`) === "completed"
-
-    let response: NextResponse
-    if (!isOnboardingCompleted) {
-      // If onboarding is not completed, force user to be on /app/onboarding
-      if (pathname !== "/app/onboarding") {
-        response = NextResponse.redirect(new URL("/app/onboarding", nextUrl))
-      } else {
-        response = NextResponse.next()
-      }
-    } else {
-      // If onboarding is completed, redirect away from /app/onboarding to /app/mail
-      if (pathname === "/app/onboarding") {
-        response = NextResponse.redirect(new URL("/app/chat", nextUrl))
-      } else {
-        response = NextResponse.next()
       }
     }
 
-    if (isLoggedIn && !req.cookies.has("veloce_logged_in")) {
-      response.cookies.set("veloce_logged_in", "true", {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 7 * 24 * 60 * 60,
-        path: "/",
-      })
+    if (!hasSession) {
+      // Return 401 Unauthorized for API routes instead of redirecting to login
+      if (pathname.startsWith("/api")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+      return session.redirectToSignIn({ returnBackUrl: req.url })
     }
-    return response
-  }
 
-  // 7. Protect other backend API endpoints (/api/emails/*, /api/calendar/*, /api/agent/*)
-  const isApiProtected = pathname.startsWith("/api/emails") || 
-                         pathname.startsWith("/api/calendar") || 
-                         pathname.startsWith("/api/agent")
-  if (isApiProtected) {
-    if (!isLoggedIn) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Protect `/app/*` routes and enforce onboarding completion status
+    if (pathname.startsWith("/app")) {
+      let userId = session.userId
+      if (!userId) {
+        const accessToken = req.cookies.get("accessToken")?.value
+        if (accessToken) {
+          const payload = verifyAccessToken(accessToken)
+          if (payload) {
+            userId = payload.userId
+          }
+        }
+      }
+
+      if (userId) {
+        const isOnboardingCompleted = (await redis.get(`onboarding:${userId}`)) === "completed"
+
+        if (!isOnboardingCompleted) {
+          if (pathname !== "/app/onboarding") {
+            return NextResponse.redirect(new URL("/app/onboarding", req.url))
+          }
+        } else {
+          if (pathname === "/app/onboarding") {
+            return NextResponse.redirect(new URL("/app/chat", req.url))
+          }
+        }
+      }
     }
-    return NextResponse.next()
+  } else {
+    // If not protected but is login/register and user is logged in, send them to workspace
+    const session = await auth()
+    let loggedIn = !!session.userId
+    if (!loggedIn) {
+      const accessToken = req.cookies.get("accessToken")?.value
+      if (accessToken) {
+        loggedIn = !!verifyAccessToken(accessToken)
+      }
+    }
+    if (loggedIn && (pathname === "/login" || pathname === "/register")) {
+      return NextResponse.redirect(new URL("/app/chat", req.url))
+    }
   }
 
   return NextResponse.next()
-}
+})
 
 export const config = {
   matcher: [
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for Clerk's auto-proxy path
+    "/__clerk/:path*",
+    "/(api|trpc)(.*)",
   ],
 }

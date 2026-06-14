@@ -1,5 +1,6 @@
 import { getSessionUser } from "@/lib/auth"
 import { corsair } from "@/lib/corsair"
+import { provisionTenant } from "@/lib/corsair/tenant"
 import { generateOAuthUrl } from "corsair/oauth"
 import { NextRequest, NextResponse } from "next/server"
 import { isDynamicUsageError } from "@/lib/auth/jwt"
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
     }
 
     const tenantId = user.id
+    await provisionTenant(tenantId)
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/corsair`
 
     const { url } = await generateOAuthUrl(corsair, pluginId, {

@@ -1,5 +1,6 @@
 import { getSessionUser } from "@/lib/auth"
 import { corsair } from "@/lib/corsair"
+import { provisionTenant } from "@/lib/corsair/tenant"
 import { NextRequest, NextResponse } from "next/server"
 import { isDynamicUsageError } from "@/lib/auth/jwt"
 
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = user.id
+    await provisionTenant(userId)
     const tenant = corsair.withTenant(userId)
 
     let gmailConnected = false
