@@ -40,7 +40,7 @@ export async function orchestrateReschedule(input: OrchestrateInput) {
     slotMinutes,
   })
 
-  // Try to search calendar for an event matching the subject if eventId is not provided
+  
   let targetEventId = eventId
   if (!targetEventId) {
     try {

@@ -4,19 +4,16 @@ import { sendThreadReply } from "@/services/mail/draft-reply"
 import { getAvailability } from "@/services/calendar/event-service"
 import { getValidAccessToken } from "@/lib/auth/google"
 
-/**
- * Extract JSON from a response that may contain markdown code fences or thinking tags.
- * Handles: raw JSON, ```json ... ```, ```...```, and <think>...</think> blocks.
- */
+
 function extractJSON(text: string): string {
-  // Strip <think>...</think> blocks (Qwen3 thinking model output)
+  
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim()
-  // Try to extract from markdown code fence
+  
   const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
   if (fenceMatch) {
     return fenceMatch[1].trim()
   }
-  // Try to find raw JSON object
+  
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
   if (jsonMatch) {
     return jsonMatch[0].trim()
@@ -24,10 +21,7 @@ function extractJSON(text: string): string {
   return cleaned
 }
 
-/**
- * Strip <think>...</think> blocks from streaming text chunks.
- * Accumulates partial think tags across chunks.
- */
+
 function stripThinkingTags(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/g, "")
 }
@@ -556,12 +550,12 @@ export async function runAgentCoPilotStream(
   const encoder = new TextEncoder()
   const stream = new ReadableStream<string>({
     async start(controller) {
-      // Stateful filter for Qwen3's <think>...</think> streaming blocks
+      
       let insideThink = false
       let pendingBuffer = ""
       
       const _onToken = (text: string) => {
-        // Filter out <think>...</think> blocks from streaming output
+        
         let remaining = pendingBuffer + text
         pendingBuffer = ""
         let output = ""
@@ -573,7 +567,7 @@ export async function runAgentCoPilotStream(
               insideThink = false
               remaining = remaining.slice(closeIdx + 8)
             } else {
-              // Still inside think block, check if we have a partial </think> at the end
+              
               if (remaining.endsWith("<") || remaining.endsWith("</") || 
                   remaining.endsWith("</t") || remaining.endsWith("</th") ||
                   remaining.endsWith("</thi") || remaining.endsWith("</thin") ||
@@ -589,7 +583,7 @@ export async function runAgentCoPilotStream(
               insideThink = true
               remaining = remaining.slice(openIdx + 7)
             } else {
-              // Check for partial <think> at end of chunk
+              
               const partialCheck = remaining.slice(-7)
               if (partialCheck.includes("<") && 
                   "<think>".startsWith(remaining.slice(remaining.lastIndexOf("<")))) {
@@ -628,7 +622,7 @@ export async function runAgentCoPilotStream(
               }
             }))
 
-            // First call: tool selection
+            
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
               method: "POST",
               headers: {
@@ -667,7 +661,7 @@ export async function runAgentCoPilotStream(
                 _onLog(`[tool] Executing ${name}...`)
                 const toolResult = await executeTool(userId, name, args)
 
-                // Second call: streaming final answer
+                
                 const sseResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                   method: "POST",
                   headers: {
@@ -702,7 +696,7 @@ export async function runAgentCoPilotStream(
                   throw new Error(errorData.error?.message || "Failed to stream OpenRouter feedback")
                 }
 
-                // Stream established successfully
+                
                 openRouterSuccess = true
                 
                 const reader = sseResponse.body?.getReader()
@@ -730,7 +724,7 @@ export async function runAgentCoPilotStream(
                   }
                 }
               } else {
-                // Direct response
+                
                 openRouterSuccess = true
                 _onToken(message?.content || "")
               }
@@ -746,7 +740,7 @@ export async function runAgentCoPilotStream(
           if (!geminiKey) {
             throw new Error("OpenRouter failed and GEMINI_API_KEY is not configured for fallback")
           }
-          // Direct Gemini fallback path
+          
           const GEMINI_TOOLS = [
             {
               functionDeclarations: ANTHROPIC_TOOLS.map((t: any) => ({

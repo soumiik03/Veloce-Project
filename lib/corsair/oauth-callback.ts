@@ -8,12 +8,7 @@ interface OAuthCallbackResult {
   calendarConnected: boolean
 }
 
-/**
- * After Corsair's processOAuthCallback succeeds, this function:
- * 1. Checks Gmail and Calendar connection status from the Corsair tenant
- * 2. Syncs tokens to google_accounts table (so getValidAccessToken works for agent/calendar services)
- * 3. Upserts onboarding_status
- */
+
 export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResult> {
   const tenant = corsair.withTenant(userId)
   let gmailConnected = false
@@ -21,21 +16,21 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
   let gmailAccessToken: string | null = null
   let gmailRefreshToken: string | null = null
 
-  // 1. Check Gmail connection
+  
   try {
     gmailAccessToken = await (tenant.gmail as any).keys.get_access_token()
     gmailConnected = !!gmailAccessToken
     try {
       gmailRefreshToken = await (tenant.gmail as any).keys.get_refresh_token()
     } catch {
-      // refresh token may not be available
+      
     }
     console.log(`[corsair/oauth] Gmail connected=${gmailConnected} for user=${userId}`)
   } catch (e) {
     console.warn("[corsair/oauth] Failed to check gmail token:", e)
   }
 
-  // 2. Check Calendar connection
+  
   try {
     const calendarToken = await (tenant.googlecalendar as any).keys.get_access_token()
     calendarConnected = !!calendarToken
@@ -44,7 +39,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
     console.warn("[corsair/oauth] Failed to check calendar token:", e)
   }
 
-  // 3. Sync tokens to google_accounts table
+  
   if (gmailAccessToken) {
     try {
       const [existingAccount] = await db
@@ -87,7 +82,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
     }
   }
 
-  // 4. Upsert onboarding_status
+  
   try {
     const [status] = await db
       .select()
@@ -122,9 +117,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
   return { gmailConnected, calendarConnected }
 }
 
-/**
- * Resolves the post-OAuth redirect URL based on cookie and connection status.
- */
+
 export function resolveRedirectUrl(
   cookieValue: string | undefined,
   gmailConnected: boolean,

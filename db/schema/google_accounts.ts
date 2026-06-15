@@ -6,7 +6,7 @@ export const googleAccounts = pgTable('google_accounts', {
   userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
   accessToken: text('access_token').notNull(),
   refreshToken: text('refresh_token'),
-  tokenExpiry: integer('token_expiry'), // unix timestamp in seconds
+  tokenExpiry: integer('token_expiry'), 
   scopes: text('scopes'),
   connectedAt: timestamp('connected_at', { withTimezone: true }).defaultNow().notNull(),
 })

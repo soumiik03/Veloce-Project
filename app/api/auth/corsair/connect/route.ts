@@ -34,10 +34,10 @@ export async function GET(req: NextRequest) {
     if (referer) {
       try {
         const refererUrl = new URL(referer)
-        // Store only the path (like "/app/settings" or "/app/onboarding")
+        
         response.cookies.set("corsair_oauth_redirect", refererUrl.pathname, { maxAge: 600, httpOnly: true })
       } catch (e) {
-        // ignore invalid URL
+        
       }
     }
     return response

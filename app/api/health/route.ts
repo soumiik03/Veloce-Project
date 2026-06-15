@@ -2,14 +2,10 @@ import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { users } from '@/db/schema'
 
-/**
- * Health check endpoint
- * Verifies: Database connectivity
- * Returns: Service status
- */
+
 export async function GET() {
   try {
-    // Test database connection
+    
     await db
       .select()
       .from(users)

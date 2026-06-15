@@ -17,12 +17,12 @@ export async function provisionTenant(userId: string): Promise<void> {
     }
   }
 
-  // 1. Setup global integration-level credentials first (omit tenantId)
+  
   await setupCorsair(corsair, {
     credentials,
   })
 
-  // 2. Setup account-level rows for the tenant (without credentials)
+  
   await setupCorsair(corsair, {
     tenantId: userId,
   })

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const threadId = reqThreadId || crypto.randomUUID()
     const threadTitle = reqThreadTitle || (message.slice(0, 40) + (message.length > 40 ? "..." : ""))
 
-    // 1. Log user message to the database under this thread
+    
     await db.insert(agent_messages).values({
       userId,
       threadId,
@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
       content: message,
     })
 
-    // 2. Start streaming with the co-pilot agent
+    
     const rawStream = await runAgentCoPilotStream(userId, message)
     
-    // We intercept the stream to capture the final assistant response text and save it to the DB
+    
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
     
@@ -50,10 +50,10 @@ export async function POST(req: NextRequest) {
             if (done) break
 
             if (value) {
-              // Forward the raw SSE chunk to the client
+              
               controller.enqueue(value as any)
 
-              // Parse and aggregate text chunks
+              
               const chunkStr = typeof value === "string" ? value : decoder.decode(value as any)
               const lines = chunkStr.split("\n")
               for (const line of lines) {

@@ -16,12 +16,12 @@ export async function getValidAccessToken(userId: string, service: 'gmail' | 'ca
   const now = Math.floor(Date.now() / 1000)
   const expiresAtNum = expiresAt ? Number(expiresAt) : 0
 
-  // If token is valid for at least 5 more minutes, use it
+  
   if (expiresAtNum > now + 300) {
     return accessToken
   }
 
-  // Token is expired or expiring soon, refresh it
+  
   if (!refreshToken) {
     throw new Error(`Google ${service} token expired and no refresh token available`)
   }
@@ -55,7 +55,7 @@ export async function getValidAccessToken(userId: string, service: 'gmail' | 'ca
   const newAccessToken = data.access_token
   const newExpiry = now + data.expires_in
 
-  // Update Corsair store
+  
   await pluginKeys.set_access_token(newAccessToken)
   await pluginKeys.set_expires_at(String(newExpiry))
 

@@ -11,8 +11,8 @@ export function useAuth() {
   const { isLoaded, userId, signOut } = useClerkAuth()
   const { user: clerkUser } = useUser()
 
-  // Memoize user object to prevent infinite re-render loops in consumers
-  // that use `user` as a useEffect dependency
+  
+  
   const user: User | null = useMemo(() => {
     if (!isLoaded || !userId || !clerkUser) return null
     return {

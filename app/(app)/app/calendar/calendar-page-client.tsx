@@ -28,18 +28,18 @@ export function CalendarPageClient() {
   const [loading, setLoading] = useState(false)
   const [viewMode, setViewMode] = useState<"week" | "month">("week")
 
-  // Conflicts list
+  
   const [conflicts, setConflicts] = useState<ConflictCard[]>([])
   const [loadingConflicts, setLoadingConflicts] = useState(false)
   const [activeConflict, setActiveConflict] = useState<ConflictCard | null>(null)
   const [resolving, setResolving] = useState(false)
 
-  // Quick create states
+  
   const [quickInput, setQuickInput] = useState("")
   const [creating, setCreating] = useState(false)
   const [quickCreateLogs, setQuickCreateLogs] = useState<string[]>([])
 
-  // Fetch Calendar events
+  
   const fetchEvents = async () => {
     setLoading(true)
     try {
@@ -51,8 +51,9 @@ export function CalendarPageClient() {
       const res = await fetch(`/api/calendar/events?timeMin=${tomorrow.toISOString()}&timeMax=${endRange.toISOString()}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.items) {
-          setEvents(data.items)
+        const eventItems = Array.isArray(data) ? data : data.items
+        if (eventItems) {
+          setEvents(eventItems)
         }
       }
     } catch (err) {
@@ -62,7 +63,7 @@ export function CalendarPageClient() {
     }
   }
 
-  // Fetch Conflicts
+  
   const fetchConflicts = async () => {
     setLoadingConflicts(true)
     try {
@@ -85,7 +86,7 @@ export function CalendarPageClient() {
     fetchConflicts()
   }, [])
 
-  // Listen to `veloce-new-event` layout trigger
+  
   useEffect(() => {
     const handleNewEvent = () => {
       const inputEl = document.getElementById("quick-event-input")
@@ -97,7 +98,7 @@ export function CalendarPageClient() {
     }
   }, [])
 
-  // 7-day timeline days generator
+  
   const getTimelineDays = () => {
     const days = []
     const start = new Date()
@@ -110,7 +111,7 @@ export function CalendarPageClient() {
   }
   const timelineDays = getTimelineDays()
 
-  // Filter events by specific day
+  
   const getEventsForDay = (day: Date) => {
     return events.filter((evt) => {
       const evtDate = new Date(evt.start.dateTime || evt.start.date || "")
@@ -118,7 +119,7 @@ export function CalendarPageClient() {
     })
   }
 
-  // Delete Calendar Event
+  
   const handleDeleteEvent = async (eventId: string) => {
     if (!confirm("Are you sure you want to delete this event?")) return
     try {
@@ -135,12 +136,12 @@ export function CalendarPageClient() {
     }
   }
 
-  // One-click Reschedule and Reply
+  
   const handleResolveReschedule = async (chosenSlot: string) => {
     if (!activeConflict || resolving) return
     setResolving(true)
     try {
-      // Calculate end time (default to 30 mins later)
+      
       const endDateTime = new Date(new Date(chosenSlot).getTime() + 30 * 60 * 1000).toISOString()
 
       const patchRes = await fetch(`/api/calendar/events/${activeConflict.currentEventId}`, {
@@ -154,9 +155,14 @@ export function CalendarPageClient() {
         })
       })
 
-      // 2. Reply to Email Thread via POST
+      if (!patchRes.ok) {
+        alert("Failed to update calendar event. Email notification was not sent.")
+        return
+      }
+
+      
       const replyBody = `Hi, I have rescheduled our meeting "${activeConflict.currentEventSummary}" to Friday at ${new Date(chosenSlot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Please verify. Thanks!`
-      await fetch(`/api/emails`, {
+      const emailRes = await fetch(`/api/emails`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -166,14 +172,18 @@ export function CalendarPageClient() {
         })
       })
 
-      if (patchRes.ok) {
-        alert("Meeting rescheduled and reply dispatched successfully!")
+      if (!emailRes.ok) {
+        alert("Calendar event updated, but the email notification failed.")
         setActiveConflict(null)
         fetchEvents()
         fetchConflicts()
-      } else {
-        alert("Failed to update calendar event.")
+        return
       }
+
+      alert("Meeting rescheduled and reply dispatched successfully!")
+      setActiveConflict(null)
+      fetchEvents()
+      fetchConflicts()
     } catch (err) {
       console.error(err)
       alert("Error resolving conflict.")
@@ -182,7 +192,7 @@ export function CalendarPageClient() {
     }
   }
 
-  // Quick create natural language submit
+  
   const handleQuickCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!quickInput.trim() || creating) return
@@ -241,12 +251,12 @@ export function CalendarPageClient() {
     }
   }
 
-  // Find Best Focus Time Trigger
+  
   const handleFindFocusTime = () => {
     alert("Analyzing calendar availability density... Staging optimal 2-hour Focus Buffer block.")
   }
 
-  // Calculation for Section A: This Week Summary
+  
   const numEventsThisWeek = events.length
   const totalDurationMin = events.reduce((total, e) => {
     const start = new Date(e.start.dateTime || e.start.date || "")
@@ -258,7 +268,7 @@ export function CalendarPageClient() {
   return (
     <div className="flex-1 flex h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden select-none">
       
-      {/* LEFT PANEL: 7-Day grid schedule (flex: 1) */}
+      {}
       <section className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d] p-6">
         <header className="flex justify-between items-center pb-4 border-b border-[#1a1a1a]/50 mb-6">
           <div>
@@ -287,7 +297,7 @@ export function CalendarPageClient() {
           </div>
         </header>
 
-        {/* Calendar Schedule Grid */}
+        {}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="h-full flex items-center justify-center text-xs text-[#555] font-mono animate-pulse">
@@ -309,7 +319,7 @@ export function CalendarPageClient() {
                       isToday ? "border-[#5aa3e8]/45 ring-1 ring-[#5aa3e8]/20" : ""
                     }`}
                   >
-                    {/* Header */}
+                    {}
                     <div className={`p-3 text-center border-b border-[#1e1e1e]/60 flex flex-col gap-0.5 ${
                       isToday ? "bg-[#1e3a5f]/20" : "bg-[#111]/60"
                     }`}>
@@ -321,7 +331,7 @@ export function CalendarPageClient() {
                       </span>
                     </div>
 
-                    {/* Events body */}
+                    {}
                     <div className="flex-1 p-2.5 overflow-y-auto space-y-2">
                       {dayEvents.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-[10px] text-[#333] font-mono font-medium tracking-widest">
@@ -343,7 +353,7 @@ export function CalendarPageClient() {
                               <span className="text-[9px] font-mono text-[#555]">
                                 {startStr}
                               </span>
-                              {/* Delete event button */}
+                              {}
                               <button
                                 onClick={() => handleDeleteEvent(evt.id)}
                                 className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-[#444] hover:text-red-400 transition-opacity border-0 bg-transparent text-[10px] cursor-pointer"
@@ -364,10 +374,10 @@ export function CalendarPageClient() {
         </div>
       </section>
 
-      {/* RIGHT PANEL: Summary, Conflicts, Quick Create (260px) */}
+      {}
       <aside className="w-[260px] border-l-[0.5px] border-[#1a1a1a] flex flex-col min-h-0 bg-[#0d0d0d] shrink-0">
         
-        {/* Section A: Week Summary */}
+        {}
         <div className="p-4 border-b border-[#1a1a1a]/50">
           <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold mb-3">
             This Week Summary
@@ -390,7 +400,7 @@ export function CalendarPageClient() {
           </div>
         </div>
 
-        {/* Section B: Conflict Resolution Queue */}
+        {}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold">
             Conflict Resolution Queue
@@ -425,7 +435,7 @@ export function CalendarPageClient() {
           )}
         </div>
 
-        {/* Quick Create Natural Language block */}
+        {}
         <div className="p-4 border-t border-[#1a1a1a]/50 bg-[#111]/30">
           <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold mb-2">
             Quick Event Pilot
@@ -454,12 +464,12 @@ export function CalendarPageClient() {
 
       </aside>
 
-      {/* Conflict Resolution Slide-over Drawer */}
+      {}
       {activeConflict && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
           <div className="w-[380px] bg-[#111] border-l border-[#1e1e1e] p-6 flex flex-col justify-between shadow-2xl animate-slide-in h-screen">
             
-            {/* Drawer Header */}
+            {}
             <div className="space-y-4">
               <div className="flex justify-between items-center border-b border-[#1e1e1e]/60 pb-3">
                 <span className="text-xs font-semibold text-white font-mono uppercase tracking-wider">
@@ -473,7 +483,7 @@ export function CalendarPageClient() {
                 </button>
               </div>
 
-              {/* Email details */}
+              {}
               <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-3.5 space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-mono text-[#666]">
                   <span className="font-semibold text-[#888]">{activeConflict.sender}</span>
@@ -487,7 +497,7 @@ export function CalendarPageClient() {
                 </p>
               </div>
 
-              {/* Current slot */}
+              {}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-mono text-[#555] uppercase block">
                   Current Blocked Slot
@@ -500,7 +510,7 @@ export function CalendarPageClient() {
                 </div>
               </div>
 
-              {/* Alternatives */}
+              {}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-mono text-[#555] uppercase block">
                   Suggested Slots (Open Buffer)
@@ -521,7 +531,7 @@ export function CalendarPageClient() {
               </div>
             </div>
 
-            {/* Footer */}
+            {}
             <div className="border-t border-[#1a1a1a]/60 pt-4 flex gap-2">
               <button
                 onClick={() => setActiveConflict(null)}

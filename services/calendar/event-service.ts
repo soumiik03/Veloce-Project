@@ -17,7 +17,7 @@ export async function getAvailability(userId: string, timeMin: string, timeMax: 
 
   const token = await getValidAccessToken(userId, 'calendar')
 
-  // Use Google Calendar FreeBusy API
+  
   const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
     method: "POST",
     headers: {

@@ -15,7 +15,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
   const [buffer, setBuffer] = useState("15")
   const [skipped, setSkipped] = useState(false)
 
-  // Status check & polling
+  
   useEffect(() => {
     let active = true
     const checkStatus = async () => {
@@ -108,7 +108,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
           </div>
 
           <div className="space-y-3">
-            {/* Gmail Connector */}
+            {}
             <div className="flex items-center justify-between p-4 bg-[#151912]/20 border border-zinc-800 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-xs font-bold">
@@ -134,7 +134,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
               )}
             </div>
 
-            {/* Calendar Connector */}
+            {}
             <div className="flex items-center justify-between p-4 bg-[#151912]/20 border border-zinc-800 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-xs font-bold">

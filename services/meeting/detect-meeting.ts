@@ -2,9 +2,7 @@ import { getThreadMessages } from "@/services/mail/thread-reader"
 import { parseMeetingIntent } from "@/services/mail/thread-parser"
 import { analyzeEmailWithGemini } from "@/services/agent.service"
 
-/**
- * Extracts and decodes text/plain parts from the Gmail message payload.
- */
+
 function getMessageBody(payload: any): string {
   if (!payload) return ""
   if (payload.mimeType === "text/plain" && payload.body?.data) {
@@ -39,7 +37,7 @@ export async function detectMeetingIntentFromThread(userId: string, threadId: st
   const from = getHeader("from") || ""
   const messageId = getHeader("message-id") || null
   
-  // Extract full decoded body or fall back to snippet
+  
   const bodyText = getMessageBody(latestMessage.payload) || latestMessage.snippet || ""
 
   let intent

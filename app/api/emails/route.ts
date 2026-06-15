@@ -3,6 +3,33 @@ import { getSessionUser } from "@/lib/auth"
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
 import { getTenant, provisionTenant } from "@/lib/corsair/tenant"
 import { getValidAccessToken } from "@/lib/auth/google"
+import { z } from "zod"
+
+const headerValueSchema = (field: string) =>
+  z.string().trim().min(1, `${field} is required`).refine(
+    (value) => !/[\r\n]/.test(value),
+    `${field} cannot contain line breaks`
+  )
+
+const emailListSchema = (field: string) =>
+  headerValueSchema(field).refine((value) => {
+    const addresses = value.split(",").map((address) => address.trim()).filter(Boolean)
+    return addresses.length > 0 && addresses.every((address) => z.string().email().safeParse(address).success)
+  }, `${field} must contain valid email address(es)`)
+
+const optionalEmailListSchema = (field: string) =>
+  z.preprocess(
+    (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+    emailListSchema(field).optional()
+  )
+
+const composeEmailSchema = z.object({
+  to: emailListSchema("To"),
+  cc: optionalEmailListSchema("Cc"),
+  bcc: optionalEmailListSchema("Bcc"),
+  subject: headerValueSchema("Subject"),
+  content: z.string().min(1, "Content is required"),
+})
 
 export async function GET(req: NextRequest) {
   let userId = ""
@@ -36,7 +63,7 @@ export async function GET(req: NextRequest) {
           let from = getHeader("from") || "Unknown Sender"
           const match = from.match(/<(.+)>/)
           if (match) {
-            from = match[1] // just the email address
+            from = match[1] 
           }
 
           let formattedDate = getHeader("date") || ""
@@ -44,7 +71,7 @@ export async function GET(req: NextRequest) {
             const date = new Date(formattedDate)
             formattedDate = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
           } catch {
-            // ignore
+            
           }
 
           return {
@@ -80,12 +107,14 @@ export async function POST(req: NextRequest) {
     }
     userId = user.id
 
-    const body = (await req.json()) as { to?: string; cc?: string; bcc?: string; subject?: string; content?: string }
-    const { to, cc, bcc, subject, content } = body
-
-    if (!to || !subject || !content) {
-      return NextResponse.json({ error: "Missing required fields (to, subject, content)" }, { status: 400 })
+    const validation = composeEmailSchema.safeParse(await req.json())
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.issues[0]?.message || "Invalid email payload" },
+        { status: 400 }
+      )
     }
+    const { to, cc, bcc, subject, content } = validation.data
 
     try {
       await provisionTenant(userId)

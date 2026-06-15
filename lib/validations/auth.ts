@@ -1,8 +1,6 @@
 import { z } from 'zod'
 
-/**
- * Email validation - RFC 5322 simplified
- */
+
 const emailSchema = z
   .string()
   .email('Invalid email address')
@@ -10,9 +8,7 @@ const emailSchema = z
   .max(255, 'Email is too long')
   .toLowerCase()
 
-/**
- * Password validation - minimum 8 chars, at least one uppercase, one number, one special char
- */
+
 const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters')
@@ -21,18 +17,14 @@ const passwordSchema = z
   .regex(/[0-9]/, 'Password must contain at least one number')
   .regex(/[!@#$%^&*]/, 'Password must contain at least one special character (!@#$%^&*)')
 
-/**
- * Name validation
- */
+
 const nameSchema = z
   .string()
   .min(1, 'Name is required')
   .max(255, 'Name is too long')
   .optional()
 
-/**
- * Register request schema
- */
+
 export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
@@ -45,9 +37,7 @@ export const registerSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>
 
-/**
- * Login request schema
- */
+
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Password is required'),
@@ -55,27 +45,21 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>
 
-/**
- * Refresh token request schema
- */
+
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 })
 
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>
 
-/**
- * Password reset request schema
- */
+
 export const passwordResetSchema = z.object({
   email: emailSchema,
 })
 
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>
 
-/**
- * Set new password schema
- */
+
 export const setPasswordSchema = z.object({
   token: z.string().min(1, 'Token is required'),
   password: passwordSchema,

@@ -24,7 +24,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
   const [loading, setLoading] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState("")
   
-  // Model Selector
+  
   const [activeModel, setActiveModel] = useState("Sonnet 4.6")
   const [showModels, setShowModels] = useState(false)
   const models = ["Sonnet 4.6", "Haiku 1.0", "Gemini 2.5 Pro"]
@@ -32,7 +32,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Auto-grow input textarea
+  
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
@@ -40,12 +40,12 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
     }
   }, [inputText])
 
-  // Scroll to bottom on new message or stream
+  
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, streamingMessage])
 
-  // Load message history if thread ID is present
+  
   useEffect(() => {
     if (!id) {
       setMessages([])
@@ -76,7 +76,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
     }
   }, [id])
 
-  // Listen for new chat trigger from sidebar
+  
   useEffect(() => {
     const handleNewChat = () => {
       setMessages([])
@@ -90,7 +90,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
     }
   }, [])
 
-  // Send message handler
+  
   const handleSend = async (textToSend?: string) => {
     const messageContent = (textToSend || inputText).trim()
     if (!messageContent) return
@@ -99,14 +99,14 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
       setInputText("")
     }
 
-    // Determine target thread ID (existing or brand new)
+    
     const activeThreadId = id || crypto.randomUUID()
     const isNewThread = !id
     const threadTitle = isNewThread
       ? messageContent.slice(0, 40) + (messageContent.length > 40 ? "..." : "")
       : undefined
 
-    // Add user message to local state
+    
     const userMsg: ChatMessage = { role: "user", content: messageContent }
     setMessages(prev => [...prev, userMsg])
     setStreamingMessage("")
@@ -162,13 +162,13 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
         }
       }
 
-      // Finalize the streaming message
+      
       if (accumulatedText) {
         setMessages(prev => [...prev, { role: "assistant", content: accumulatedText }])
         setStreamingMessage("")
       }
 
-      // If it's a new thread, navigate to the specific thread route silently to prevent remounting
+      
       if (isNewThread) {
         window.history.replaceState(null, '', `/app/chat/${activeThreadId}`)
       }
@@ -189,7 +189,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
     }
   }
 
-  // Quick Action Pills Handler
+  
   const handleQuickAction = (pill: string) => {
     if (pill === "reschedule") {
       handleSend("Scan my inbox for reschedule requests and find alternative spots.")
@@ -206,16 +206,16 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
   return (
     <div className="flex-1 flex flex-col h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden">
       
-      {/* Scrollable Chat History */}
+      {}
       <div className="flex-1 overflow-y-auto px-6 py-8 md:px-12 lg:px-24">
         {messages.length === 0 && !streamingMessage ? (
-          /* Home State */
+          
           <div className="h-full flex flex-col justify-center items-center select-none max-w-2xl mx-auto text-center gap-10">
             <h1 className="text-4xl md:text-5xl font-serif italic font-normal text-white animate-fade-in tracking-tight">
               Happy {activeDayName}, {firstName}
             </h1>
             
-            {/* Centered prompt card */}
+            {}
             <div className="w-full bg-[#141414] border border-[#1e1e1e] rounded-2xl p-4 shadow-xl text-left flex flex-col gap-3">
               <textarea
                 ref={textareaRef}
@@ -228,7 +228,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
               />
               
               <div className="flex items-center justify-between border-t border-[#1e1e1e]/60 pt-3 mt-1 text-[#555]">
-                {/* Left controls */}
+                {}
                 <div className="flex items-center gap-3">
                   <button className="hover:text-white transition-colors cursor-pointer" title="Add context">
                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -237,7 +237,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
                   </button>
                 </div>
                 
-                {/* Right controls */}
+                {}
                 <div className="flex items-center gap-3.5 relative">
                   <button 
                     onClick={() => setShowModels(!showModels)}
@@ -291,7 +291,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
               </div>
             </div>
 
-            {/* Quick Action Pills */}
+            {}
             <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
               <button 
                 onClick={() => handleQuickAction("reschedule")}
@@ -314,7 +314,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
             </div>
           </div>
         ) : (
-          /* Active Chat Stream State */
+          
           <div className="max-w-2xl mx-auto flex flex-col gap-6 pb-24">
             {loading ? (
               <div className="py-12 text-center text-xs text-[#555] font-mono animate-pulse">
@@ -342,7 +342,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
                   </div>
                 ))}
                 
-                {/* Streaming response */}
+                {}
                 {streamingMessage && (
                   <div className="flex flex-col gap-1.5 items-start mr-auto max-w-[85%]">
                     <span className="text-[10px] font-mono uppercase text-[#444] tracking-wider">
@@ -361,7 +361,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
         )}
       </div>
 
-      {/* Floating Bottom Input Box (Only in Active State) */}
+      {}
       {(messages.length > 0 || streamingMessage) && (
         <div className="bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d] to-transparent pt-6 pb-6 px-6 relative z-10 shrink-0">
           <div className="bg-[#141414] border border-[#1e1e1e] rounded-2xl p-3 flex items-center gap-3 max-w-2xl mx-auto w-full relative shadow-2xl">

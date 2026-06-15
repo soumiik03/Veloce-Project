@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { listInboxThreads, getThreadMessages } from "@/services/mail/thread-reader"
 import { getValidAccessToken } from "@/lib/auth/google"
 import { Redis } from "@upstash/redis"
@@ -8,7 +8,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 })
 
-// Local memory cache fallback for development
+
 const localCache = new Map<string, { value: any; expires: number }>()
 
 async function getCache(key: string): Promise<any> {
@@ -34,11 +34,11 @@ async function setCache(key: string, value: any, ttlSeconds: number) {
   }
 }
 
-// Gemini embeddings fetcher
+
 async function getEmbedding(text: string): Promise<number[]> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
   if (!apiKey) {
-    // Return mock vector for sandbox
+    
     return Array.from({ length: 768 }, () => Math.random())
   }
 
@@ -90,7 +90,7 @@ const CONFLICT_KEYWORDS = [
 export async function detectConflicts(userId: string) {
   const cacheKey = `conflicts:${userId}`
   
-  // Throttle detection runs to once per minute
+  
   const lastRun = await getCache(`last_conflict_run:${userId}`)
   if (lastRun) {
     return await getCache(cacheKey)
@@ -99,7 +99,7 @@ export async function detectConflicts(userId: string) {
   console.log(`[Conflict Detector] Starting scan for user ${userId}...`)
 
   try {
-    // 1. Fetch recent emails (cached/live)
+    
     let emails: any[] = []
     try {
       const listResult = await listInboxThreads(userId, 10)
@@ -127,7 +127,7 @@ export async function detectConflicts(userId: string) {
       throw err
     }
 
-    // 2. Fetch calendar events
+    
     let events: any[] = []
     try {
       const tomorrow = new Date()
@@ -156,15 +156,15 @@ export async function detectConflicts(userId: string) {
 
     const conflicts: any[] = []
 
-    // 3. Perform Cosine Similarity + Keyword checks
+    
     for (const email of emails) {
       const emailText = `${email.subject} ${email.snippet}`.toLowerCase()
       
-      // Check for keywords
+      
       const hasKeyword = CONFLICT_KEYWORDS.some(kw => emailText.includes(kw))
       if (!hasKeyword) continue
 
-      // Get email embedding
+      
       const emailEmbedding = await getEmbedding(`${email.subject}: ${email.snippet}`)
 
       for (const event of events) {
@@ -172,13 +172,13 @@ export async function detectConflicts(userId: string) {
 
         const similarity = cosineSimilarity(emailEmbedding, eventEmbedding)
 
-        // If similarity is high (e.g. > 0.6) or attendee matches, flag a conflict
+        
         const isAttendeeMatch = event.attendees?.some((att: any) => 
           email.from.toLowerCase().includes(att.email.toLowerCase())
         )
 
         if (similarity > 0.65 || (hasKeyword && isAttendeeMatch)) {
-          // Generate 3 suggested times relative to next Friday morning/afternoon
+          
           const friday = new Date()
           const dayOfWeek = friday.getDay()
           const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7
@@ -210,9 +210,9 @@ export async function detectConflicts(userId: string) {
       }
     }
 
-    // 4. Cache results in Redis
-    await setCache(cacheKey, conflicts, 300) // 5 minutes TTL
-    await setCache(`last_conflict_run:${userId}`, "true", 60) // Cooldown 1 minute
+    
+    await setCache(cacheKey, conflicts, 300) 
+    await setCache(`last_conflict_run:${userId}`, "true", 60) 
     
     console.log(`[Conflict Detector] Completed. Found ${conflicts.length} conflicts.`)
     return conflicts

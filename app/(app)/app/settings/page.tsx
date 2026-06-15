@@ -9,25 +9,25 @@ function SettingsContent() {
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   
-  // Connection statuses
+  
   const [connectionStatus, setConnectionStatus] = useState<{
     gmail: boolean
     googlecalendar: boolean
     connected: boolean
   }>({ gmail: false, googlecalendar: false, connected: false })
 
-  // Preferences States
+  
   const [selectedModel, setSelectedModel] = useState("Sonnet 4.6")
   const [bufferSize, setBufferSize] = useState(15)
   const [timezone, setTimezone] = useState("America/New_York")
   const [workingHoursStart, setWorkingHoursStart] = useState("09:00")
   const [workingHoursEnd, setWorkingHoursEnd] = useState("17:00")
   
-  // Toggles
+  
   const [conflictAlerts, setConflictAlerts] = useState(true)
   const [dailySummary, setDailySummary] = useState(true)
 
-  // Check for error from OAuth redirect
+  
   useEffect(() => {
     const errorParam = searchParams.get("error")
     if (errorParam) {
@@ -35,7 +35,7 @@ function SettingsContent() {
     }
   }, [searchParams])
 
-  // Fetch current connection statuses on mount
+  
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -53,7 +53,7 @@ function SettingsContent() {
 
   const handleDisconnect = async (plugin: "gmail" | "googlecalendar") => {
     alert(`Disconnecting ${plugin}... Workspace auth will clear on reload.`)
-    // Mock disconnect by updating state
+    
     setConnectionStatus(prev => ({
       ...prev,
       [plugin]: false,
@@ -62,14 +62,14 @@ function SettingsContent() {
   }
 
   const handleReconnect = (plugin: "gmail" | "googlecalendar") => {
-    // Navigate the browser window directly to initiate Google OAuth consent flow
+    
     window.location.href = `/api/auth/corsair/connect?plugin=${plugin}`
   }
 
   return (
     <div className="flex-1 flex flex-col h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-y-auto p-6 md:p-12 max-w-4xl mx-auto w-full select-none">
       
-      {/* Header */}
+      {}
       <header className="pb-6 border-b border-[#1a1a1a] mb-8">
         <h1 className="text-2xl font-semibold text-white tracking-tight">Settings Calibration</h1>
         <p className="text-xs text-[#888] font-sans font-light mt-1.5">
@@ -82,13 +82,13 @@ function SettingsContent() {
         )}
       </header>
 
-      {/* Grid */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* COLUMN 1: Settings Form (8 cols) */}
+        {}
         <div className="lg:col-span-8 space-y-8">
           
-          {/* Section 1: Connected Accounts */}
+          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">Connected Accounts</h3>
@@ -96,7 +96,7 @@ function SettingsContent() {
             </div>
 
             <div className="space-y-3">
-              {/* Gmail Connection Row */}
+              {}
               <div className="p-4 bg-[#141414] border border-[#1e1e1e] rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/15 border border-[#5aa3e8]/20 flex items-center justify-center text-xs font-mono font-bold text-[#5aa3e8]">
@@ -132,7 +132,7 @@ function SettingsContent() {
                 </div>
               </div>
 
-              {/* Calendar Connection Row */}
+              {}
               <div className="p-4 bg-[#141414] border border-[#1e1e1e] rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/15 border border-[#5aa3e8]/20 flex items-center justify-center text-xs font-mono font-bold text-[#5aa3e8]">
@@ -170,7 +170,7 @@ function SettingsContent() {
             </div>
           </section>
 
-          {/* Section 2: AI Model Selection */}
+          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">AI Model Selection</h3>
@@ -197,7 +197,7 @@ function SettingsContent() {
             </div>
           </section>
 
-          {/* Section 3: Meeting Preferences */}
+          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-5">
             <div>
               <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">Meeting Preferences</h3>
@@ -205,7 +205,7 @@ function SettingsContent() {
             </div>
 
             <div className="space-y-4 text-xs">
-              {/* Buffer select */}
+              {}
               <div className="flex items-center justify-between">
                 <span className="text-[#aaa]">Meeting Buffer Size:</span>
                 <select
@@ -221,7 +221,7 @@ function SettingsContent() {
                 </select>
               </div>
 
-              {/* Working Hours */}
+              {}
               <div className="flex items-center justify-between">
                 <span className="text-[#aaa]">Working Hours Range:</span>
                 <div className="flex items-center gap-2">
@@ -241,7 +241,7 @@ function SettingsContent() {
                 </div>
               </div>
 
-              {/* Timezone */}
+              {}
               <div className="flex items-center justify-between">
                 <span className="text-[#aaa]">Default Timezone:</span>
                 <select
@@ -261,10 +261,10 @@ function SettingsContent() {
 
         </div>
 
-        {/* COLUMN 2: Sidebar (4 cols) */}
+        {}
         <div className="lg:col-span-4 space-y-6">
           
-          {/* Notifications toggles */}
+          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
             <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold border-b border-[#1e1e1e]/40 pb-2">
               Notification System
@@ -296,7 +296,7 @@ function SettingsContent() {
             </div>
           </section>
 
-          {/* Keyboard Shortcuts */}
+          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5 space-y-3">
             <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold border-b border-[#1e1e1e]/40 pb-2">
               Keyboard Shortcuts
@@ -321,7 +321,7 @@ function SettingsContent() {
             </div>
           </section>
 
-          {/* Sign Out Card */}
+          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5">
             <button
               onClick={logout}

@@ -4,11 +4,7 @@ import { corsair } from "@/lib/corsair"
 import { processOAuthCallback } from "corsair/oauth"
 import { syncOAuthTokens, resolveRedirectUrl } from "@/lib/corsair/oauth-callback"
 
-/**
- * Google OAuth callback handler.
- * Handles both Corsair-initiated OAuth flows (state !== "static_state")
- * and any legacy direct OAuth flows.
- */
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -27,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     const userId = user.id
 
-    // Corsair OAuth flow (state is present and not the legacy "static_state")
+    
     if (state && state !== "static_state") {
       console.log(`[auth/callback/google] Processing Corsair OAuth for user=${userId}`)
 
@@ -45,7 +41,7 @@ export async function GET(req: NextRequest) {
       return response
     }
 
-    // Legacy direct Google OAuth flow (fallback, state === "static_state" or missing)
+    
     console.log(`[auth/callback/google] Processing legacy OAuth for user=${userId}`)
 
     const clientID = process.env.GOOGLE_CLIENT_ID
@@ -74,7 +70,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Token exchange failed" }, { status: 400 })
     }
 
-    // Sync via the shared helper after updating Corsair tokens
+    
     const { gmailConnected, calendarConnected } = await syncOAuthTokens(userId)
     const nextUrl = gmailConnected && calendarConnected ? "/app/chat" : "/app/onboarding"
 

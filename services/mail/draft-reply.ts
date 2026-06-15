@@ -138,7 +138,7 @@ export async function sendThreadReply(input: {
     const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`
     const fromHeader = getHeader("from") || ""
 
-    // Extract raw email address
+    
     const emailRegex = /<([^>]+)>/
     const match = fromHeader.match(emailRegex)
     const to = match ? match[1] : fromHeader

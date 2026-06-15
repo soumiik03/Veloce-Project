@@ -37,7 +37,7 @@ export default function ProductMockup() {
 
   return (
     <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch relative">
-      {/* Side Controllers */}
+      {}
       <div className="lg:col-span-4 flex flex-col justify-between gap-6 py-2">
         <div className="flex flex-col gap-6">
           <div>
@@ -92,16 +92,16 @@ export default function ProductMockup() {
         </div>
       </div>
 
-      {/* Visual Window */}
+      {}
       <div className="lg:col-span-8 bg-[#090d1c]/45 border border-indigo-500/15 rounded-2xl p-6 flex flex-col justify-between min-h-[480px] shadow-2xl relative overflow-hidden backdrop-blur-md">
-        {/* Subtle grid lines background overlay */}
+        {}
         <div className="absolute inset-0 grid grid-cols-12 pointer-events-none opacity-20">
           {Array.from({ length: 11 }).map((_, i) => (
             <div key={i} className="h-full border-r border-indigo-500/5 col-span-1"></div>
           ))}
         </div>
 
-        {/* Top bar simulating browser/console */}
+        {}
         <div className="relative z-10 flex items-center justify-between border-b border-indigo-500/10 pb-4">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-500/20"></span>
@@ -115,10 +115,10 @@ export default function ProductMockup() {
           </div>
         </div>
 
-        {/* Content Area - dynamic states */}
+        {}
         <div className="relative z-10 my-8 flex-1 flex flex-col justify-center">
           
-          {/* Step 1: INBOX INTERCEPT */}
+          {}
           <div className={`transition-all duration-500 flex flex-col gap-4 ${activeStep === 0 ? "opacity-100 scale-100" : "opacity-0 scale-95 hidden pointer-events-none"}`}>
             <div className="bg-[#0b1022]/70 border border-indigo-500/20 rounded-xl p-5 shadow-lg max-w-xl mx-auto w-full backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4 border-b border-indigo-500/10 pb-3">
@@ -147,7 +147,7 @@ export default function ProductMockup() {
             </div>
           </div>
 
-          {/* Step 2: CALENDAR SEARCH */}
+          {}
           <div className={`transition-all duration-500 flex flex-col gap-4 ${activeStep === 1 ? "opacity-100 scale-100" : "opacity-0 scale-95 hidden pointer-events-none"}`}>
             <div className="bg-[#0b1022]/70 border border-indigo-500/20 rounded-xl p-5 shadow-lg max-w-xl mx-auto w-full backdrop-blur-sm">
               <div className="text-xs font-semibold text-zinc-200 mb-3 flex justify-between items-center border-b border-indigo-500/10 pb-2">
@@ -192,7 +192,7 @@ export default function ProductMockup() {
             </div>
           </div>
 
-          {/* Step 3: SMART SUGGESTION */}
+          {}
           <div className={`transition-all duration-500 flex flex-col gap-4 ${activeStep === 2 ? "opacity-100 scale-100" : "opacity-0 scale-95 hidden pointer-events-none"}`}>
             <div className="bg-[#0b1022]/70 border border-indigo-500/20 rounded-xl p-5 shadow-lg max-w-xl mx-auto w-full flex flex-col gap-4 backdrop-blur-sm">
               <div className="text-xs font-semibold text-zinc-200 border-b border-indigo-500/10 pb-2 flex justify-between items-center">
@@ -223,7 +223,7 @@ export default function ProductMockup() {
             </div>
           </div>
 
-          {/* Step 4: AUTO-DRAFT & SYNC */}
+          {}
           <div className={`transition-all duration-500 flex flex-col gap-4 ${activeStep === 3 ? "opacity-100 scale-100" : "opacity-0 scale-95 hidden pointer-events-none"}`}>
             <div className="bg-[#0b1022]/70 border border-indigo-500/20 rounded-xl p-5 shadow-lg max-w-xl mx-auto w-full flex flex-col gap-4 backdrop-blur-sm">
               <div className="flex justify-between items-center border-b border-indigo-500/10 pb-2">
@@ -254,7 +254,7 @@ export default function ProductMockup() {
 
         </div>
 
-        {/* Bottom bar simulating controller console */}
+        {}
         <div className="relative z-10 border-t border-indigo-500/10 pt-4 flex items-center justify-between text-xs text-zinc-500 font-mono">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 text-indigo-400/80">

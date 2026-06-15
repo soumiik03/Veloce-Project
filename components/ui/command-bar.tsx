@@ -37,7 +37,7 @@ export default function CommandBar({
   
   const commandRef = useRef<HTMLDivElement>(null)
 
-  // Handle click outside to close dropdowns
+  
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (commandRef.current && !commandRef.current.contains(e.target as Node)) {
@@ -49,13 +49,13 @@ export default function CommandBar({
     return () => document.removeEventListener("mousedown", handleOutsideClick)
   }, [])
 
-  // Handle Enter press
+  
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       triggerExecute()
     }
-    // Show quick commands if typing '/'
+    
     if (e.key === "/") {
       setShowCommands(true)
     }
@@ -77,7 +77,7 @@ export default function CommandBar({
     setIsListening(true)
     setInputText("")
     
-    // Emulate voice capture
+    
     const phrases = ["Reschedule John's architectural sync tomorrow", "Search for emails from Alex Chen", "Check calendar slots for Friday morning"]
     const phrase = phrases[Math.floor(Math.random() * phrases.length)]
     
@@ -96,7 +96,7 @@ export default function CommandBar({
   return (
     <div ref={commandRef} className="relative w-full max-w-2xl mx-auto z-40 select-none">
       
-      {/* 1. SLASH COMMANDS DROP-UP */}
+      {}
       {showCommands && (
         <div className="absolute bottom-full mb-3 left-0 right-0 bg-zinc-950 border border-zinc-900 rounded-xl p-2 shadow-2xl backdrop-blur-md flex flex-col gap-1 z-50">
           <div className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest px-3 py-1.5 border-b border-zinc-900 mb-1">
@@ -115,7 +115,7 @@ export default function CommandBar({
         </div>
       )}
 
-      {/* 2. MODEL SELECTOR DROP-UP */}
+      {}
       {showModels && (
         <div className="absolute bottom-full right-14 mb-3 w-48 bg-zinc-950 border border-zinc-900 rounded-xl p-1.5 shadow-2xl backdrop-blur-md flex flex-col gap-1 z-50">
           <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider px-2.5 py-1.5 border-b border-zinc-900 mb-1">
@@ -140,10 +140,10 @@ export default function CommandBar({
         </div>
       )}
 
-      {/* 3. THE MAIN COMMAND BAR PILL (Ref Image Style) */}
+      {}
       <div className="bg-[#121411]/95 border border-zinc-800/70 rounded-2xl p-4 shadow-2xl backdrop-blur-md flex flex-col gap-3">
         
-        {/* Input Text Area */}
+        {}
         <textarea
           value={inputText}
           onChange={(e) => {
@@ -164,12 +164,12 @@ export default function CommandBar({
           className="w-full bg-transparent text-zinc-150 placeholder-zinc-600 text-sm focus:outline-none resize-none min-h-[22px] leading-relaxed font-light font-sans"
         />
 
-        {/* Action Controls Row */}
+        {}
         <div className="flex items-center justify-between border-t border-zinc-900/40 pt-2.5">
           
-          {/* Left Actions */}
+          {}
           <div className="flex items-center gap-3.5">
-            {/* Plus / Command Toggle */}
+            {}
             <button
               onClick={() => setShowCommands(!showCommands)}
               className="text-zinc-500 hover:text-zinc-200 p-0.5 rounded-md hover:bg-zinc-900/50 transition cursor-pointer"
@@ -180,7 +180,7 @@ export default function CommandBar({
               </svg>
             </button>
 
-            {/* Mode Selector Pill (Ref Image Style) */}
+            {}
             <button
               onClick={() => {
                 const newMode = currentMode === "ask" ? "search" : "ask"
@@ -202,10 +202,10 @@ export default function CommandBar({
             </button>
           </div>
 
-          {/* Right Actions */}
+          {}
           <div className="flex items-center gap-4">
             
-            {/* Model Selector Dropdown */}
+            {}
             <button
               onClick={() => setShowModels(!showModels)}
               className="flex items-center gap-1 text-[11px] font-mono text-zinc-400 hover:text-zinc-200 cursor-pointer"
@@ -216,7 +216,7 @@ export default function CommandBar({
               </svg>
             </button>
 
-            {/* Voice Mic Toggle */}
+            {}
             <button
               onClick={triggerVoiceEmulation}
               className={`p-0.5 rounded-full transition cursor-pointer relative ${
@@ -234,7 +234,7 @@ export default function CommandBar({
               </svg>
             </button>
 
-            {/* Execute Send Button (Ref Image Style: circle with up arrow) */}
+            {}
             <button
               onClick={triggerExecute}
               disabled={!inputText.trim()}

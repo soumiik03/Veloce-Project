@@ -26,11 +26,11 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeFolder, setActiveFolder] = useState("inbox")
 
-  // Reply Draft box states
+  
   const [replyText, setReplyText] = useState("")
   const [draftingAI, setDraftingAI] = useState(false)
 
-  // AI Sidebar analysis states
+  
   const [analysis, setAnalysis] = useState<{
     summary: string
     actionRequirements: string[]
@@ -43,7 +43,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
   const [aiChatLogs, setAiChatLogs] = useState<{ role: "user" | "assistant"; text: string }[]>([])
   const [sendingAiQuery, setSendingAiQuery] = useState(false)
 
-  // Compose Modal states
+  
   const [showCompose, setShowCompose] = useState(false)
   const [composeTo, setComposeTo] = useState("")
   const [composeCc, setComposeCc] = useState("")
@@ -55,7 +55,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Fetch threads on mount
+  
   const fetchThreads = async () => {
     setLoadingThreads(true)
     try {
@@ -63,7 +63,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
       if (res.ok) {
         const data = await res.json()
         if (data.threads) {
-          // Cross reference with conflict detector state if needed (or detect simple vectors)
+          
           const parsed: MailThread[] = data.threads.map((t: any) => ({
             ...t,
             isReschedule: (t.snippet || "").toLowerCase().includes("reschedule") || 
@@ -84,14 +84,14 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     fetchThreads()
   }, [])
 
-  // Sync route param threadId
+  
   useEffect(() => {
     if (initialThreadId) {
       setSelectedThreadId(initialThreadId)
     }
   }, [initialThreadId])
 
-  // Fetch thread details and AI Analysis
+  
   useEffect(() => {
     if (!selectedThreadId) {
       setThreadDetail(null)
@@ -104,7 +104,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
       setLoadingDetail(false)
       setLoadingAnalysis(true)
       try {
-        // Fetch thread details
+        
         setLoadingDetail(true)
         const detailRes = await fetch(`/api/emails/${selectedThreadId}`)
         if (detailRes.ok) {
@@ -113,7 +113,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
         }
         setLoadingDetail(false)
 
-        // Fetch AI Analysis summary
+        
         const analysisRes = await fetch(`/api/emails/${selectedThreadId}/analysis`)
         if (analysisRes.ok) {
           const analysisData = await analysisRes.json()
@@ -130,7 +130,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     fetchThreadDetail()
   }, [selectedThreadId])
 
-  // Listen to Compose event from persistent layout
+  
   useEffect(() => {
     const handleNewMail = () => {
       setShowCompose(true)
@@ -141,7 +141,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     }
   }, [])
 
-  // Action pills search execute
+  
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!searchQuery.trim()) {
@@ -155,14 +155,14 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: `/search ${searchQuery}` })
       })
-      // Let's reload threads list from standard list and filter locally
+      
       fetchThreads()
     } catch {
       setLoadingThreads(false)
     }
   }
 
-  // Filter threads based on Search Query locally
+  
   const filteredThreads = threads.filter(t => {
     if (activeFolder === "sent") return (t.from || "").includes("me") || (t.from || "").includes("Soumik")
     const matchQuery = (t.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -171,7 +171,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     return matchQuery
   })
 
-  // Stream AI Reply Draft
+  
   const handleAIDraft = async () => {
     if (!threadDetail || draftingAI) return
     setReplyText("")
@@ -237,7 +237,7 @@ Keep the response concise, clear, and direct. Output only the email body without
     }
   }
 
-  // Send Reply Email
+  
   const handleSendReply = async () => {
     if (!replyText.trim() || !selectedThreadId) return
     setDraftingAI(true)
@@ -256,7 +256,7 @@ Keep the response concise, clear, and direct. Output only the email body without
       if (res.ok) {
         setReplyText("")
         alert("Reply successfully sent!")
-        // Reload details
+        
         const detailRes = await fetch(`/api/emails/${selectedThreadId}`)
         if (detailRes.ok) {
           const detailData = await detailRes.json()
@@ -273,7 +273,7 @@ Keep the response concise, clear, and direct. Output only the email body without
     }
   }
 
-  // Compose Email (AI Write helper)
+  
   const handleAIWrite = async () => {
     if (!composeSubject.trim() || writingAI) {
       alert("Please enter a subject first so the AI can capture the context.")
@@ -330,7 +330,7 @@ Keep the response concise, clear, and direct. Output only the email body without
     }
   }
 
-  // Submit Composed Email
+  
   const handleSendCompose = async () => {
     if (!composeTo.trim() || !composeSubject.trim() || !composeContent.trim()) {
       alert("Please fill in To, Subject, and Content fields.")
@@ -372,7 +372,7 @@ Keep the response concise, clear, and direct. Output only the email body without
     }
   }
 
-  // Submit AI Query on selected thread
+  
   const handleSendAiQuery = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!aiChatQuery.trim() || !selectedThreadId || sendingAiQuery) return
@@ -437,7 +437,7 @@ Keep the response concise, clear, and direct. Output only the email body without
     }
   }
 
-  // Quick reply action helpers
+  
   const handleSuggestedReplyClick = (reply: string) => {
     setReplyText(reply)
   }
@@ -445,10 +445,10 @@ Keep the response concise, clear, and direct. Output only the email body without
   return (
     <div className="flex-1 flex h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden select-none">
       
-      {/* PANEL 1: Inbox Navigation and Feed (280px) */}
+      {}
       <aside className="w-[280px] border-r-[0.5px] border-[#1a1a1a] flex flex-col min-h-0 bg-[#0d0d0d] shrink-0">
         
-        {/* Folder items list */}
+        {}
         <div className="p-4 flex flex-col gap-1 border-b border-[#1a1a1a]/50">
           {["inbox", "sent", "drafts", "trash"].map((folder) => (
             <button
@@ -470,7 +470,7 @@ Keep the response concise, clear, and direct. Output only the email body without
           ))}
         </div>
 
-        {/* Search Bar */}
+        {}
         <form onSubmit={handleSearch} className="p-3 border-b border-[#1a1a1a]/50">
           <input
             type="text"
@@ -481,7 +481,7 @@ Keep the response concise, clear, and direct. Output only the email body without
           />
         </form>
 
-        {/* Email Feed */}
+        {}
         <div className="flex-1 overflow-y-auto">
           {loadingThreads ? (
             <div className="p-8 text-center text-xs text-[#555] font-mono animate-pulse">
@@ -521,11 +521,11 @@ Keep the response concise, clear, and direct. Output only the email body without
         </div>
       </aside>
 
-      {/* PANEL 2: Selected Thread Detail & Compose replies (flex: 1) */}
+      {}
       <section className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d]">
         {selectedThreadId ? (
           <div className="flex-1 flex flex-col min-h-0">
-            {/* Header */}
+            {}
             <header className="p-6 border-b border-[#1a1a1a]/50 flex justify-between items-center">
               <div>
                 <h1 className="text-[16px] font-semibold text-white tracking-tight leading-snug">
@@ -554,7 +554,7 @@ Keep the response concise, clear, and direct. Output only the email body without
               </div>
             </header>
 
-            {/* Email Message Detail History */}
+            {}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {loadingDetail ? (
                 <div className="py-24 text-center text-xs text-[#555] font-mono animate-pulse">
@@ -577,7 +577,7 @@ Keep the response concise, clear, and direct. Output only the email body without
                   )
                 })
               ) : (
-                /* Detail Fallback */
+                
                 <div className="bg-[#111] border border-[#1e1e1e]/60 rounded-xl p-4 flex flex-col gap-3">
                   <div className="flex justify-between items-center text-[11px] font-mono border-b border-[#1e1e1e]/40 pb-2">
                     <span className="text-white font-medium">{threadDetail?.from || "Veloce"}</span>
@@ -590,7 +590,7 @@ Keep the response concise, clear, and direct. Output only the email body without
               )}
             </div>
 
-            {/* Bottom reply compose box */}
+            {}
             <div className="p-6 border-t border-[#1a1a1a]/50 bg-[#111]/30">
               <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-3 flex flex-col gap-3">
                 <textarea
@@ -635,12 +635,12 @@ Keep the response concise, clear, and direct. Output only the email body without
         )}
       </section>
 
-      {/* PANEL 3: AI Mail Sidebar (220px) */}
+      {}
       {selectedThreadId && (
         <aside className="w-[220px] border-l-[0.5px] border-[#1a1a1a] flex flex-col min-h-0 bg-[#0d0d0d] shrink-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             
-            {/* Summary */}
+            {}
             <div className="flex flex-col gap-2">
               <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
                 AI Summary
@@ -654,7 +654,7 @@ Keep the response concise, clear, and direct. Output only the email body without
               )}
             </div>
 
-            {/* Action Requirements */}
+            {}
             <div className="flex flex-col gap-2">
               <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
                 Action Items
@@ -672,7 +672,7 @@ Keep the response concise, clear, and direct. Output only the email body without
               )}
             </div>
 
-            {/* Metadata (Priority & Calendar) */}
+            {}
             <div className="flex flex-col gap-3">
               <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
                 Context Signals
@@ -697,7 +697,7 @@ Keep the response concise, clear, and direct. Output only the email body without
               </div>
             </div>
 
-            {/* Suggested Replies */}
+            {}
             {analysis?.suggestedReplies && analysis.suggestedReplies.length > 0 && (
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
@@ -718,7 +718,7 @@ Keep the response concise, clear, and direct. Output only the email body without
               </div>
             )}
 
-            {/* Mini Chat log */}
+            {}
             {aiChatLogs.length > 0 && (
               <div className="flex flex-col gap-2.5 pt-2 border-t border-[#1a1a1a]/50">
                 <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold">
@@ -737,7 +737,7 @@ Keep the response concise, clear, and direct. Output only the email body without
 
           </div>
 
-          {/* Ask sidebar input */}
+          {}
           <form onSubmit={handleSendAiQuery} className="p-3 border-t border-[#1a1a1a]/50 bg-[#111]/30">
             <input
               type="text"
@@ -751,12 +751,12 @@ Keep the response concise, clear, and direct. Output only the email body without
         </aside>
       )}
 
-      {/* Compose Email Modal */}
+      {}
       {showCompose && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
           <div className="w-full max-w-[500px] bg-[#111] border border-[#1e1e1e] rounded-xl flex flex-col shadow-2xl">
             
-            {/* Modal Header */}
+            {}
             <header className="p-4 border-b border-[#1a1a1a]/60 flex justify-between items-center">
               <span className="text-xs font-semibold text-white font-mono">NEW EMAIL</span>
               <button 
@@ -767,10 +767,10 @@ Keep the response concise, clear, and direct. Output only the email body without
               </button>
             </header>
 
-            {/* Modal Form */}
+            {}
             <div className="p-5 flex flex-col gap-4">
               
-              {/* To/Cc/Bcc row */}
+              {}
               <div className="flex flex-col gap-2.5">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-[#555] font-mono w-10 text-right">To:</span>
@@ -804,7 +804,7 @@ Keep the response concise, clear, and direct. Output only the email body without
                 </div>
               </div>
 
-              {/* Subject */}
+              {}
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-[#555] font-mono w-10 text-right">Subj:</span>
                 <input
@@ -816,7 +816,7 @@ Keep the response concise, clear, and direct. Output only the email body without
                 />
               </div>
 
-              {/* Content textarea */}
+              {}
               <textarea
                 value={composeContent}
                 onChange={(e) => setComposeContent(e.target.value)}
@@ -825,7 +825,7 @@ Keep the response concise, clear, and direct. Output only the email body without
                 className="w-full bg-[#141414] border border-[#1e1e1e] rounded-md p-3 text-xs text-white placeholder-[#444] focus:outline-none resize-none leading-relaxed"
               />
 
-              {/* Action Buttons */}
+              {}
               <div className="flex justify-between items-center border-t border-[#1a1a1a]/50 pt-4 mt-2">
                 <button
                   onClick={handleAIWrite}

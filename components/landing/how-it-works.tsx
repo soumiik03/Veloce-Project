@@ -56,7 +56,7 @@ const STEPS = [
 export default function HowItWorks() {
   return (
     <div className="relative w-full">
-      {/* Decorative center connecting line for larger screens */}
+      {}
       <div className="absolute top-[48px] left-[5%] right-[5%] h-[1px] bg-zinc-800/60 hidden lg:block z-0"></div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 relative z-10">
@@ -66,11 +66,11 @@ export default function HowItWorks() {
             className="flex flex-col gap-4 bg-zinc-950/40 border border-zinc-900 hover:border-zinc-800/80 p-6 rounded-2xl transition-all duration-300 group"
           >
             <div className="flex items-center justify-between">
-              {/* Icon Container */}
+              {}
               <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 group-hover:border-indigo-500/20 group-hover:bg-indigo-500/5 transition-all duration-300">
                 {step.icon}
               </div>
-              {/* Step number badge */}
+              {}
               <span className="font-mono text-xs text-zinc-600 group-hover:text-indigo-500/60 transition-colors">
                 {step.num}
               </span>

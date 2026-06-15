@@ -3,19 +3,16 @@ import { getSessionUser } from "@/lib/auth"
 import { getThreadMessages } from "@/services/mail/thread-reader"
 import { provisionTenant } from "@/lib/corsair/tenant"
 
-/**
- * Extract JSON from a response that may contain markdown code fences or thinking tags.
- * Handles: raw JSON, ```json ... ```, ```...```, and <think>...</think> blocks.
- */
+
 function extractJSON(text: string): string {
-  // Strip <think>...</think> blocks (Qwen3 thinking model output)
+  
   let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim()
-  // Try to extract from markdown code fence
+  
   const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
   if (fenceMatch) {
     return fenceMatch[1].trim()
   }
-  // Try to find raw JSON object
+  
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
   if (jsonMatch) {
     return jsonMatch[0].trim()
@@ -35,7 +32,7 @@ export async function GET(
     }
     const userId = user.id
 
-    // Get thread content
+    
     let subject = ""
     let body = ""
     let from = ""
