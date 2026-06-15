@@ -20,7 +20,7 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
     let active = true
     const checkStatus = async () => {
       try {
-        const res = await fetch("/api/auth/corsair/status")
+        const res = await fetch("/api/onboarding/status")
         if (!res.ok) return
         const data = await res.json()
         if (active) {

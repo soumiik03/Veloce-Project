@@ -4,6 +4,10 @@ import { db } from "@/db"
 import { users } from "@/db/schema"
 import { eq } from "drizzle-orm"
 
+/**
+ * Resolves the currently authenticated Clerk user to their database record.
+ * Auto-provisions the user in the DB if they don't exist yet.
+ */
 export async function getSessionUser(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   req?: NextRequest

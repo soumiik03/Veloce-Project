@@ -4,6 +4,34 @@ import { sendThreadReply } from "@/services/mail/draft-reply"
 import { getAvailability } from "@/services/calendar/event-service"
 import { getValidAccessToken } from "@/lib/auth/google"
 
+/**
+ * Extract JSON from a response that may contain markdown code fences or thinking tags.
+ * Handles: raw JSON, ```json ... ```, ```...```, and <think>...</think> blocks.
+ */
+function extractJSON(text: string): string {
+  // Strip <think>...</think> blocks (Qwen3 thinking model output)
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim()
+  // Try to extract from markdown code fence
+  const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
+  if (fenceMatch) {
+    return fenceMatch[1].trim()
+  }
+  // Try to find raw JSON object
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+  if (jsonMatch) {
+    return jsonMatch[0].trim()
+  }
+  return cleaned
+}
+
+/**
+ * Strip <think>...</think> blocks from streaming text chunks.
+ * Accumulates partial think tags across chunks.
+ */
+function stripThinkingTags(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/g, "")
+}
+
 export type GeminiMeetingAnalysis = {
   isMeetingRelated: boolean
   isRescheduleRequest: boolean
@@ -18,76 +46,112 @@ export async function analyzeEmailWithGemini(
   body: string,
   from: string
 ): Promise<GeminiMeetingAnalysis> {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured")
+  const openrouterKey = process.env.OPENROUTER_API_KEY
+  const openrouterModel = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash"
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
+
+  if (!openrouterKey && !geminiKey) {
+    throw new Error("Neither OPENROUTER_API_KEY nor GEMINI_API_KEY is configured")
   }
 
-  const prompt = `
-    Analyze the following email details:
-    Sender: ${from}
-    Subject: ${subject}
-    Body: ${body}
+  const prompt = `Analyze the following email and return ONLY a valid JSON object (no markdown, no code fences, no explanation).
 
-    Determine:
-    1. If the email is related to scheduling, sync, invitations, or a meeting.
-    2. If it is specifically requesting to reschedule an existing meeting.
-    3. Provide a brief summary of the scheduling request.
-    4. Extract any suggested dates, times, or time ranges proposed by the sender.
-    5. Extract all email addresses mentioned as potential attendees.
-    6. Estimate your confidence score between 0.0 and 1.0.
+Sender: ${from}
+Subject: ${subject}
+Body: ${body}
 
-    Return the analysis matching the required JSON structure.
-  `
+Return this exact JSON structure:
+{"isMeetingRelated": true/false, "isRescheduleRequest": true/false, "summary": "brief summary", "suggestedTimes": ["time1", "time2"], "attendees": ["email1@example.com"], "confidence": 0.0-1.0}
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              isMeetingRelated: { type: "BOOLEAN" },
-              isRescheduleRequest: { type: "BOOLEAN" },
-              summary: { type: "STRING" },
-              suggestedTimes: {
-                type: "ARRAY",
-                items: { type: "STRING" }
-              },
-              attendees: {
-                type: "ARRAY",
-                items: { type: "STRING" }
-              },
-              confidence: { type: "NUMBER" }
-            },
-            required: ["isMeetingRelated", "isRescheduleRequest", "summary", "suggestedTimes", "attendees", "confidence"]
-          }
-        }
+Do NOT wrap in code fences. Return ONLY the JSON object.`
+
+  let rawText = ""
+  let openRouterSuccess = false
+
+  if (openrouterKey) {
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openrouterKey}`,
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          "X-Title": "Veloce"
+        },
+        body: JSON.stringify({
+          model: openrouterModel,
+          messages: [{ role: "user", content: prompt }]
+        })
       })
+
+      const data = await response.json()
+      if (response.ok && data.choices?.[0]?.message?.content) {
+        rawText = data.choices[0].message.content
+        openRouterSuccess = true
+      } else {
+        console.warn("[OpenRouter Analysis Warning]: Failed or rate-limited. Falling back to Gemini.", data)
+      }
+    } catch (err) {
+      console.warn("[OpenRouter Analysis Exception]: Falling back to Gemini.", err)
     }
-  )
-
-  const data = await response.json()
-  if (!response.ok) {
-    console.error("[Gemini API Error]:", data)
-    throw new Error(data.error?.message || "Failed to analyze email with Gemini")
   }
 
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!rawText) {
-    throw new Error("Empty response from Gemini")
-  }
+  if (openRouterSuccess) {
+    const jsonStr = extractJSON(rawText)
+    return JSON.parse(jsonStr) as GeminiMeetingAnalysis
+  } else {
+    if (!geminiKey) {
+      throw new Error("OpenRouter failed and GEMINI_API_KEY is not configured for fallback")
+    }
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                isMeetingRelated: { type: "BOOLEAN" },
+                isRescheduleRequest: { type: "BOOLEAN" },
+                summary: { type: "STRING" },
+                suggestedTimes: {
+                  type: "ARRAY",
+                  items: { type: "STRING" }
+                },
+                attendees: {
+                  type: "ARRAY",
+                  items: { type: "STRING" }
+                },
+                confidence: { type: "NUMBER" }
+              },
+              required: ["isMeetingRelated", "isRescheduleRequest", "summary", "suggestedTimes", "attendees", "confidence"]
+            }
+          }
+        })
+      }
+    )
 
-  return JSON.parse(rawText) as GeminiMeetingAnalysis
+    const data = await response.json()
+    if (!response.ok) {
+      console.error("[Gemini API Error]:", data)
+      throw new Error(data.error?.message || "Failed to analyze email with Gemini")
+    }
+
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!rawText) {
+      throw new Error("Empty response from Gemini")
+    }
+
+    return JSON.parse(rawText) as GeminiMeetingAnalysis
+  }
 }
 
 async function executeTool(userId: string, name: string, args: any): Promise<any> {
@@ -473,7 +537,7 @@ const ANTHROPIC_TOOLS = [
       properties: {}
     }
   }
-]
+];
 
 export async function runAgentCoPilotStream(
   userId: string,
@@ -481,15 +545,69 @@ export async function runAgentCoPilotStream(
   onToken?: (text: string) => void,
   onLog?: (text: string) => void
 ): Promise<ReadableStream<string>> {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
-  if (!apiKey) throw new Error("No Gemini key")
+  const openrouterKey = process.env.OPENROUTER_API_KEY
+  const openrouterModel = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash"
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
+
+  if (!openrouterKey && !geminiKey) {
+    throw new Error("Neither OPENROUTER_API_KEY nor GEMINI_API_KEY is configured")
+  }
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream<string>({
     async start(controller) {
+      // Stateful filter for Qwen3's <think>...</think> streaming blocks
+      let insideThink = false
+      let pendingBuffer = ""
+      
       const _onToken = (text: string) => {
-        if (onToken) onToken(text)
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`) as any)
+        // Filter out <think>...</think> blocks from streaming output
+        let remaining = pendingBuffer + text
+        pendingBuffer = ""
+        let output = ""
+        
+        while (remaining.length > 0) {
+          if (insideThink) {
+            const closeIdx = remaining.indexOf("</think>")
+            if (closeIdx !== -1) {
+              insideThink = false
+              remaining = remaining.slice(closeIdx + 8)
+            } else {
+              // Still inside think block, check if we have a partial </think> at the end
+              if (remaining.endsWith("<") || remaining.endsWith("</") || 
+                  remaining.endsWith("</t") || remaining.endsWith("</th") ||
+                  remaining.endsWith("</thi") || remaining.endsWith("</thin") ||
+                  remaining.endsWith("</think")) {
+                pendingBuffer = remaining
+              }
+              remaining = ""
+            }
+          } else {
+            const openIdx = remaining.indexOf("<think>")
+            if (openIdx !== -1) {
+              output += remaining.slice(0, openIdx)
+              insideThink = true
+              remaining = remaining.slice(openIdx + 7)
+            } else {
+              // Check for partial <think> at end of chunk
+              const partialCheck = remaining.slice(-7)
+              if (partialCheck.includes("<") && 
+                  "<think>".startsWith(remaining.slice(remaining.lastIndexOf("<")))) {
+                output += remaining.slice(0, remaining.lastIndexOf("<"))
+                pendingBuffer = remaining.slice(remaining.lastIndexOf("<"))
+                remaining = ""
+              } else {
+                output += remaining
+                remaining = ""
+              }
+            }
+          }
+        }
+        
+        if (output) {
+          if (onToken) onToken(output)
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: output })}\n\n`) as any)
+        }
       }
       const _onLog = (log: string) => {
         if (onLog) onLog(log)
@@ -497,57 +615,150 @@ export async function runAgentCoPilotStream(
       }
 
       try {
-        const GEMINI_TOOLS = [
-          {
-            functionDeclarations: ANTHROPIC_TOOLS.map((t: any) => ({
-              name: t.name,
-              description: t.description,
-              parameters: t.input_schema
-            }))
-          }
-        ]
+        let openRouterSuccess = false
 
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              systemInstruction: {
-                parts: [{ text: SYSTEM_PROMPT }]
-              },
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: userMessage }]
-                }
-              ],
-              tools: GEMINI_TOOLS,
-              toolConfig: {
-                functionCallingConfig: {
-                  mode: "AUTO"
-                }
+        if (openrouterKey) {
+          try {
+            const openrouterTools = ANTHROPIC_TOOLS.map((t: any) => ({
+              type: "function",
+              function: {
+                name: t.name,
+                description: t.description,
+                parameters: t.input_schema
               }
+            }))
+
+            // First call: tool selection
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${openrouterKey}`,
+                "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+                "X-Title": "Veloce"
+              },
+              body: JSON.stringify({
+                model: openrouterModel,
+                messages: [
+                  { role: "system", content: SYSTEM_PROMPT },
+                  { role: "user", content: userMessage }
+                ],
+                tools: openrouterTools,
+                tool_choice: "auto"
+              })
             })
+
+            const responseData = await response.json().catch(() => ({}))
+            
+            if (response.ok && responseData.choices?.[0]) {
+              const message = responseData.choices[0].message
+              const toolCalls = message?.tool_calls
+
+              if (toolCalls && toolCalls.length > 0) {
+                const toolCall = toolCalls[0]
+                const { name } = toolCall.function
+                let args = {}
+                try {
+                  args = JSON.parse(toolCall.function.arguments || "{}")
+                } catch (jsonErr) {
+                  console.warn("Failed to parse tool call arguments:", toolCall.function.arguments, jsonErr)
+                }
+
+                _onLog(`[tool] Executing ${name}...`)
+                const toolResult = await executeTool(userId, name, args)
+
+                // Second call: streaming final answer
+                const sseResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${openrouterKey}`,
+                    "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+                    "X-Title": "Veloce"
+                  },
+                  body: JSON.stringify({
+                    model: openrouterModel,
+                    messages: [
+                      { role: "system", content: SYSTEM_PROMPT },
+                      { role: "user", content: userMessage },
+                      {
+                        role: "assistant",
+                        content: message.content || null,
+                        tool_calls: toolCalls
+                      },
+                      {
+                        role: "tool",
+                        tool_call_id: toolCall.id,
+                        name: name,
+                        content: JSON.stringify(toolResult)
+                      }
+                    ],
+                    stream: true
+                  })
+                })
+
+                if (!sseResponse.ok) {
+                  const errorData = await sseResponse.json().catch(() => ({}))
+                  throw new Error(errorData.error?.message || "Failed to stream OpenRouter feedback")
+                }
+
+                // Stream established successfully
+                openRouterSuccess = true
+                
+                const reader = sseResponse.body?.getReader()
+                const decoder = new TextDecoder()
+                let buffer = ""
+
+                if (reader) {
+                  while (true) {
+                    const { done, value } = await reader.read()
+                    if (done) break
+                    buffer += decoder.decode(value, { stream: true })
+                    const lines = buffer.split("\n")
+                    buffer = lines.pop() || ""
+                    for (const line of lines) {
+                      const trimmed = line.trim()
+                      if (!trimmed.startsWith("data:")) continue
+                      const jsonStr = trimmed.slice(5).trim()
+                      if (jsonStr === "[DONE]") continue
+                      try {
+                        const parsed = JSON.parse(jsonStr)
+                        const text = parsed.choices?.[0]?.delta?.content
+                        if (text) _onToken(text)
+                      } catch {}
+                    }
+                  }
+                }
+              } else {
+                // Direct response
+                openRouterSuccess = true
+                _onToken(message?.content || "")
+              }
+            } else {
+              console.warn("[OpenRouter Chat Warning]: Failed or rate-limited. Falling back to Gemini.", responseData)
+            }
+          } catch (err) {
+            console.warn("[OpenRouter Chat Exception]: Falling back to Gemini.", err)
           }
-        )
-
-        if (!response.ok) {
-          throw new Error("Gemini tool selection failed")
         }
+        
+        if (!openRouterSuccess) {
+          if (!geminiKey) {
+            throw new Error("OpenRouter failed and GEMINI_API_KEY is not configured for fallback")
+          }
+          // Direct Gemini fallback path
+          const GEMINI_TOOLS = [
+            {
+              functionDeclarations: ANTHROPIC_TOOLS.map((t: any) => ({
+                name: t.name,
+                description: t.description,
+                parameters: t.input_schema
+              }))
+            }
+          ]
 
-        const responseData = await response.json()
-        const candidate = responseData.candidates?.[0]
-        const part = candidate?.content?.parts?.[0]
-
-        if (part?.functionCall) {
-          const { name, args } = part.functionCall
-          _onLog(`[tool] Executing ${name}...`)
-          
-          const toolResult = await executeTool(userId, name, args)
-
-          const sseResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -559,64 +770,101 @@ export async function runAgentCoPilotStream(
                   {
                     role: "user",
                     parts: [{ text: userMessage }]
-                  },
-                  {
-                    role: "model",
-                    parts: [
-                      {
-                        functionCall: {
-                          name,
-                          args
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    role: "function",
-                    parts: [
-                      {
-                        functionResponse: {
-                          name,
-                          response: { output: toolResult }
-                        }
-                      }
-                    ]
                   }
                 ],
-                tools: GEMINI_TOOLS
+                tools: GEMINI_TOOLS,
+                toolConfig: {
+                  functionCallingConfig: {
+                    mode: "AUTO"
+                  }
+                }
               })
             }
           )
 
-          if (!sseResponse.ok) throw new Error("Failed to stream feedback")
+          if (!response.ok) {
+            throw new Error("Gemini tool selection failed")
+          }
 
-          const reader = sseResponse.body?.getReader()
-          const decoder = new TextDecoder()
-          let buffer = ""
+          const responseData = await response.json()
+          const candidate = responseData.candidates?.[0]
+          const part = candidate?.content?.parts?.[0]
 
-          if (reader) {
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              buffer += decoder.decode(value, { stream: true })
-              const lines = buffer.split("\n")
-              buffer = lines.pop() || ""
-              for (const line of lines) {
-                const trimmed = line.trim()
-                if (!trimmed.startsWith("data:")) continue
-                const jsonStr = trimmed.slice(5).trim()
-                if (jsonStr === "[DONE]") continue
-                try {
-                  const parsed = JSON.parse(jsonStr)
-                  const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text
-                  if (text) _onToken(text)
-                } catch {}
+          if (part?.functionCall) {
+            const { name, args } = part.functionCall
+            _onLog(`[tool] Executing ${name}...`)
+            
+            const toolResult = await executeTool(userId, name, args)
+
+            const sseResponse = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:streamGenerateContent?key=${geminiKey}&alt=sse`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  systemInstruction: {
+                    parts: [{ text: SYSTEM_PROMPT }]
+                  },
+                  contents: [
+                    {
+                      role: "user",
+                      parts: [{ text: userMessage }]
+                    },
+                    {
+                      role: "model",
+                      parts: [part]
+                    },
+                    {
+                      role: "function",
+                      parts: [
+                        {
+                          functionResponse: {
+                            name,
+                            id: part.functionCall.id,
+                            response: { output: toolResult }
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  tools: GEMINI_TOOLS
+                })
+              }
+            )
+
+            if (!sseResponse.ok) {
+              const errTxt = await sseResponse.text().catch(() => "Unknown error")
+              console.error("[Gemini SSE Error]:", errTxt)
+              throw new Error("Failed to stream feedback")
+            }
+
+            const reader = sseResponse.body?.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ""
+
+            if (reader) {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split("\n")
+                buffer = lines.pop() || ""
+                for (const line of lines) {
+                  const trimmed = line.trim()
+                  if (!trimmed.startsWith("data:")) continue
+                  const jsonStr = trimmed.slice(5).trim()
+                  if (jsonStr === "[DONE]") continue
+                  try {
+                    const parsed = JSON.parse(jsonStr)
+                    const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text
+                    if (text) _onToken(text)
+                  } catch {}
+                }
               }
             }
+          } else {
+            _onToken(part?.text || "")
           }
-        } else {
-          // Direct response fallback
-          _onToken(part?.text || "")
         }
       } catch (err: any) {
         _onLog(`[error] ${err.message}`)

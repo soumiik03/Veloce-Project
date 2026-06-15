@@ -29,25 +29,22 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://clerk.com https://challenges.cloudflare.com",
-      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://clerk.com https://challenges.cloudflare.com blob:",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' blob: data: https: https://*.clerk.accounts.dev https://img.clerk.com https://images.clerk.dev",
-      "font-src 'self'",
+      "font-src 'self' https://fonts.gstatic.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
       "frame-src 'self' https://*.clerk.accounts.dev https://clerk.com https://challenges.cloudflare.com",
-      "connect-src 'self' https://accounts.google.com https://*.clerk.accounts.dev https://clerk.com https://challenges.cloudflare.com",
-      "upgrade-insecure-requests",
+      "connect-src 'self' https://accounts.google.com https://*.googleapis.com https://*.clerk.accounts.dev https://clerk.com https://challenges.cloudflare.com https://clerk-telemetry.com",
+      "worker-src 'self' blob:",
     ].join("; "),
   },
 ]
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -6,6 +6,9 @@ const isProtectedRoute = createRouteMatcher([
   "/api/emails(.*)",
   "/api/calendar(.*)",
   "/api/agent(.*)",
+  "/api/auth/corsair(.*)",
+  "/api/auth/callback(.*)",
+  "/api/onboarding(.*)",
 ])
 
 export default clerkMiddleware(async (auth, req) => {
@@ -18,34 +21,40 @@ export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
     const session = await auth()
     if (!session.userId) {
+      // For API routes, return 401 instead of redirecting to login page
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
       return NextResponse.redirect(new URL("/login", req.url))
     }
 
-    // We fetch the status from a dedicated Edge-friendly route to avoid pg/Drizzle Edge runtime errors
-    const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
-    const res = await fetch(`${origin}/api/auth/edge-session`, {
-      headers: {
-        cookie: req.headers.get('cookie') || '',
-      }
-    })
-    
-    if (res.ok) {
-      const data = await res.json()
-      // data: { id: string, onboarded: boolean }
-      
-      if (!data.onboarded) {
+    // Onboarding redirect logic — only for page routes (/app/*), never for API routes.
+    // API routes need auth but should always return JSON, not HTML redirects.
+    if (pathname.startsWith("/app/")) {
+      const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
+      const res = await fetch(`${origin}/api/auth/edge-session`, {
+        headers: {
+          cookie: req.headers.get('cookie') || '',
+        }
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+
+        if (!data.onboarded) {
+          if (pathname !== "/app/onboarding") {
+            return NextResponse.redirect(new URL("/app/onboarding", req.url))
+          }
+        } else {
+          if (pathname === "/app/onboarding") {
+            return NextResponse.redirect(new URL("/app/chat", req.url))
+          }
+        }
+      } else {
+        // If the edge-session fetch fails, force onboarding to be safe
         if (pathname !== "/app/onboarding") {
           return NextResponse.redirect(new URL("/app/onboarding", req.url))
         }
-      } else {
-        if (pathname === "/app/onboarding") {
-          return NextResponse.redirect(new URL("/app/chat", req.url))
-        }
-      }
-    } else {
-      // If the edge-session fetch fails, we default to forcing onboarding to be safe
-      if (pathname !== "/app/onboarding") {
-        return NextResponse.redirect(new URL("/app/onboarding", req.url))
       }
     }
   }

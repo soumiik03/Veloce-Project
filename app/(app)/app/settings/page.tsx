@@ -39,7 +39,7 @@ function SettingsContent() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch("/api/auth/corsair/status")
+        const res = await fetch("/api/onboarding/status")
         if (res.ok) {
           const data = await res.json()
           setConnectionStatus(data)
