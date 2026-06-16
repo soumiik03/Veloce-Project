@@ -21,9 +21,10 @@ function buildEmailReply({
     body: string
     messageId?: string | null
 }) {
+    const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`
     const headers = [
         `To: ${to}`,
-        `Subject: ${subject}`,
+        `Subject: ${encodedSubject}`,
         "MIME-Version: 1.0",
         'Content-Type: text/plain; charset="UTF-8"',
     ]
@@ -34,7 +35,7 @@ function buildEmailReply({
     }
 
     headers.push("")
-    headers.push(body)
+    headers.push(body.replace(/\r?\n/g, "\r\n"))
 
     return headers.join("\r\n")
 }

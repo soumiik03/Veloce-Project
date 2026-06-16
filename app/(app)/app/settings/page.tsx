@@ -17,15 +17,8 @@ function SettingsContent() {
   }>({ gmail: false, googlecalendar: false, connected: false })
 
   
-  const [selectedModel, setSelectedModel] = useState("veloce pro")
-  const [bufferSize, setBufferSize] = useState(15)
-  const [timezone, setTimezone] = useState("America/New_York")
-  const [workingHoursStart, setWorkingHoursStart] = useState("09:00")
-  const [workingHoursEnd, setWorkingHoursEnd] = useState("17:00")
-  
-  
-  const [conflictAlerts, setConflictAlerts] = useState(true)
-  const [dailySummary, setDailySummary] = useState(true)
+  const [morningBriefingEnabled, setMorningBriefingEnabled] = useState(true)
+  const [triggeringBriefing, setTriggeringBriefing] = useState(false)
 
   
   useEffect(() => {
@@ -48,8 +41,61 @@ function SettingsContent() {
         console.error("Failed to fetch connection status in settings:", err)
       }
     }
+    const fetchBriefingStatus = async () => {
+      try {
+        const res = await fetch("/api/settings/morning-briefing", { credentials: "include" })
+        if (res.ok) {
+          const data = await res.json()
+          setMorningBriefingEnabled(data.morningBriefingEnabled)
+        }
+      } catch (err) {
+        console.error("Failed to fetch briefing status:", err)
+      }
+    }
     fetchStatus()
+    fetchBriefingStatus()
   }, [])
+
+  const handleToggleMorningBriefing = async () => {
+    const nextVal = !morningBriefingEnabled
+    setMorningBriefingEnabled(nextVal)
+    try {
+      await fetch("/api/settings/morning-briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ morningBriefingEnabled: nextVal })
+      })
+    } catch (err) {
+      console.error("Failed to toggle morning briefing:", err)
+    }
+  }
+
+  const handleTriggerBriefingTest = async () => {
+    setTriggeringBriefing(true)
+    try {
+      const res = await fetch("/api/morning-briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include"
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.emailSent) {
+          alert("⚡ Morning Briefing generated and sent successfully to your email!")
+        } else {
+          alert("Briefing generated but failed to send email. Check Google API keys.")
+        }
+      } else {
+        alert("Failed to generate morning briefing.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error generating morning briefing.")
+    } finally {
+      setTriggeringBriefing(false)
+    }
+  }
 
   const handleDisconnect = async (plugin: "gmail" | "googlecalendar") => {
     alert(`Disconnecting ${plugin}... Workspace auth will clear on reload.`)
@@ -86,7 +132,7 @@ function SettingsContent() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-7 space-y-8">
           
           {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-4">
@@ -170,99 +216,10 @@ function SettingsContent() {
             </div>
           </section>
 
-          {}
-          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">AI Model Selection</h3>
-              <p className="text-[11px] text-[#666] font-sans mt-1">Calibrate model parameters for the streaming co-pilot agent.</p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { name: "veloce pro", desc: "Highest intelligence" },
-                { name: "Haiku 1.0", desc: "Fastest response time" },
-                { name: "Opus 3.0", desc: "Complex reasonings" }
-              ].map((model) => (
-                <button
-                  key={model.name}
-                  onClick={() => setSelectedModel(model.name)}
-                  className={`p-3 bg-[#141414] hover:bg-[#1a1a1a] border rounded-lg text-left transition-all cursor-pointer ${
-                    selectedModel === model.name ? "border-[#5aa3e8]/50 ring-1 ring-[#5aa3e8]/20" : "border-[#1e1e1e]"
-                  }`}
-                >
-                  <span className="text-xs font-semibold text-white block">{model.name}</span>
-                  <span className="text-[9px] text-[#555] font-light mt-0.5 block">{model.desc}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {}
-          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-5">
-            <div>
-              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">Meeting Preferences</h3>
-              <p className="text-[11px] text-[#666] font-sans mt-1">Define focus constraints for scheduler routing.</p>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              {}
-              <div className="flex items-center justify-between">
-                <span className="text-[#aaa]">Meeting Buffer Size:</span>
-                <select
-                  value={bufferSize}
-                  onChange={(e) => setBufferSize(parseInt(e.target.value))}
-                  className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none"
-                >
-                  <option value={0}>No buffer</option>
-                  <option value={5}>5 minutes</option>
-                  <option value={10}>10 minutes</option>
-                  <option value={15}>15 minutes</option>
-                  <option value={30}>30 minutes</option>
-                </select>
-              </div>
-
-              {}
-              <div className="flex items-center justify-between">
-                <span className="text-[#aaa]">Working Hours Range:</span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    value={workingHoursStart}
-                    onChange={(e) => setWorkingHoursStart(e.target.value)}
-                    className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none text-[11px]"
-                  />
-                  <span className="text-[#555] font-mono">to</span>
-                  <input
-                    type="time"
-                    value={workingHoursEnd}
-                    onChange={(e) => setWorkingHoursEnd(e.target.value)}
-                    className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none text-[11px]"
-                  />
-                </div>
-              </div>
-
-              {}
-              <div className="flex items-center justify-between">
-                <span className="text-[#aaa]">Default Timezone:</span>
-                <select
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="bg-[#141414] border border-[#1e1e1e] text-white rounded px-2.5 py-1 focus:outline-none"
-                >
-                  <option value="America/New_York">Eastern Time (EST/EDT)</option>
-                  <option value="America/Chicago">Central Time (CST/CDT)</option>
-                  <option value="America/Denver">Mountain Time (MST/MDT)</option>
-                  <option value="America/Los_Angeles">Pacific Time (PST/PDT)</option>
-                  <option value="UTC">Coordinated Universal Time (UTC)</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
         </div>
 
         {}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-5 space-y-6">
           
           {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
@@ -271,52 +228,32 @@ function SettingsContent() {
             </span>
             <div className="space-y-4 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-[#aaa]">Conflict Alerts</span>
+                <div>
+                  <span className="text-[#aaa] block font-mono">Morning Briefing</span>
+                  <span className="text-[9px] text-[#555] block">30-sec digest sent at 8 AM IST</span>
+                </div>
                 <button
-                  onClick={() => setConflictAlerts(!conflictAlerts)}
+                  onClick={handleToggleMorningBriefing}
                   className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer border-0 ${
-                    conflictAlerts ? "bg-[#5aa3e8]" : "bg-[#222]"
+                    morningBriefingEnabled ? "bg-[#5aa3e8]" : "bg-[#222]"
                   }`}
                 >
-                  <div className={`bg-white w-4 h-4 rounded-full transition-transform ${conflictAlerts ? "translate-x-4" : "translate-x-0"}`} />
+                  <div className={`bg-white w-4 h-4 rounded-full transition-transform ${morningBriefingEnabled ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-[#aaa]">Daily Summaries</span>
+              <div className="flex items-center justify-between border-t border-[#1e1e1e]/40 pt-3 mt-1">
+                <div>
+                  <span className="text-[#aaa] block font-mono">Test Briefing</span>
+                  <span className="text-[9px] text-[#555] block">Send one to your email now</span>
+                </div>
                 <button
-                  onClick={() => setDailySummary(!dailySummary)}
-                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer border-0 ${
-                    dailySummary ? "bg-[#5aa3e8]" : "bg-[#222]"
-                  }`}
+                  onClick={handleTriggerBriefingTest}
+                  disabled={triggeringBriefing}
+                  className="px-2.5 py-1 bg-[#5aa3e8]/10 hover:bg-[#5aa3e8]/20 border border-[#5aa3e8]/20 text-[#5aa3e8] text-[10px] font-mono rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className={`bg-white w-4 h-4 rounded-full transition-transform ${dailySummary ? "translate-x-4" : "translate-x-0"}`} />
+                  {triggeringBriefing ? "Wait..." : "Send"}
                 </button>
-              </div>
-            </div>
-          </section>
-
-          {}
-          <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5 space-y-3">
-            <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold border-b border-[#1e1e1e]/40 pb-2">
-              Keyboard Shortcuts
-            </span>
-            <div className="space-y-2 text-[11px] font-mono text-[#777]">
-              <div className="flex justify-between">
-                <span>NEW CHAT:</span>
-                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ N</span>
-              </div>
-              <div className="flex justify-between">
-                <span>COMPOSE EMAIL:</span>
-                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ M</span>
-              </div>
-              <div className="flex justify-between">
-                <span>SYNC TELEMETRY:</span>
-                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ R</span>
-              </div>
-              <div className="flex justify-between">
-                <span>SETTINGS SHIFT:</span>
-                <span className="text-[#888] bg-[#1a1a1a] px-1 py-0.5 rounded">⌘ ,</span>
               </div>
             </div>
           </section>

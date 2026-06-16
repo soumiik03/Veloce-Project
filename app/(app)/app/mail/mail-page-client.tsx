@@ -197,7 +197,7 @@ Keep the response concise, clear, and direct. Output only the email body without
           "Content-Type": "application/json"
         },
         credentials: "include",
-        body: JSON.stringify({ message: prompt })
+        body: JSON.stringify({ message: prompt, noTools: true })
       })
 
       if (!res.ok) throw new Error("AI draft service offline")
@@ -293,7 +293,7 @@ Keep the response concise, clear, and direct. Output only the email body without
           "Content-Type": "application/json"
         },
         credentials: "include",
-        body: JSON.stringify({ message: prompt })
+        body: JSON.stringify({ message: prompt, noTools: true })
       })
 
       if (!res.ok) throw new Error("AI engine offline")

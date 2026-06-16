@@ -383,13 +383,14 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
         const { to, subject, body } = args
         try {
           const token = await getValidAccessToken(userId)
+          const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`
           const emailHeaders = [
             `To: ${to}`,
-            `Subject: ${subject}`,
+            `Subject: ${encodedSubject}`,
             "MIME-Version: 1.0",
             'Content-Type: text/plain; charset="UTF-8"',
             "",
-            body
+            body.replace(/\r?\n/g, "\r\n")
           ]
           const raw = Buffer.from(emailHeaders.join("\r\n"))
             .toString("base64")
@@ -584,7 +585,8 @@ export async function runAgentCoPilotStream(
   userId: string,
   userMessage: string,
   onToken?: (text: string) => void,
-  onLog?: (text: string) => void
+  onLog?: (text: string) => void,
+  noTools?: boolean
 ): Promise<ReadableStream<string>> {
   const currentSystemPrompt = `${SYSTEM_PROMPT}\n\nIMPORTANT: The current date and time is ${new Date().toLocaleString()} (timezone: Asia/Kolkata, current ISO time: ${new Date().toISOString()}). Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long' })}. Please parse and resolve all dates/times (e.g., relative references like "tomorrow", "this Friday", "June 19") relative to this date and time.`
 
@@ -662,14 +664,64 @@ export async function runAgentCoPilotStream(
 
         if (openrouterKey) {
           try {
-            const openrouterTools = ANTHROPIC_TOOLS.map((t: any) => ({
-              type: "function",
-              function: {
-                name: t.name,
-                description: t.description,
-                parameters: t.input_schema
+            if (noTools) {
+              const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${openrouterKey}`,
+                  "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+                  "X-Title": "Veloce"
+                },
+                body: JSON.stringify({
+                  model: openrouterModel,
+                  messages: [
+                    { role: "system", content: currentSystemPrompt },
+                    { role: "user", content: userMessage }
+                  ],
+                  stream: true
+                })
+              })
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.error?.message || "Failed to call OpenRouter")
               }
-            }))
+
+              openRouterSuccess = true
+              const reader = response.body?.getReader()
+              const decoder = new TextDecoder()
+              let buffer = ""
+
+              if (reader) {
+                while (true) {
+                  const { done, value } = await reader.read()
+                  if (done) break
+                  buffer += decoder.decode(value, { stream: true })
+                  const lines = buffer.split("\n")
+                  buffer = lines.pop() || ""
+                  for (const line of lines) {
+                    const trimmed = line.trim()
+                    if (!trimmed.startsWith("data:")) continue
+                    const jsonStr = trimmed.slice(5).trim()
+                    if (jsonStr === "[DONE]") continue
+                    try {
+                      const parsed = JSON.parse(jsonStr)
+                      const text = parsed.choices?.[0]?.delta?.content
+                      if (text) _onToken(text)
+                    } catch {}
+                  }
+                }
+              }
+            } else {
+              const openrouterTools = ANTHROPIC_TOOLS.map((t: any) => ({
+                type: "function",
+                function: {
+                  name: t.name,
+                  description: t.description,
+                  parameters: t.input_schema
+                }
+              }))
 
             
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -780,6 +832,7 @@ export async function runAgentCoPilotStream(
             } else {
               console.warn("[OpenRouter Chat Warning]: Failed or rate-limited. Falling back to Gemini.", responseData)
             }
+          }
           } catch (err) {
             console.warn("[OpenRouter Chat Exception]: Falling back to Gemini.", err)
           }
@@ -790,7 +843,54 @@ export async function runAgentCoPilotStream(
             throw new Error("OpenRouter failed and GEMINI_API_KEY is not configured for fallback")
           }
           
-          const GEMINI_TOOLS = [
+          if (noTools) {
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:streamGenerateContent?key=${geminiKey}&alt=sse`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  systemInstruction: {
+                    parts: [{ text: currentSystemPrompt }]
+                  },
+                  contents: [
+                    {
+                      role: "user",
+                      parts: [{ text: userMessage }]
+                    }
+                  ]
+                })
+              }
+            )
+
+            if (!response.ok) {
+              throw new Error("Gemini streamGenerateContent failed")
+            }
+
+            const reader = response.body?.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ""
+
+            if (reader) {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split("\n")
+                buffer = lines.pop() || ""
+                for (const line of lines) {
+                  const trimmed = line.trim()
+                  if (!trimmed.startsWith("data:")) continue
+                  try {
+                    const parsed = JSON.parse(trimmed.slice(5).trim())
+                    const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text
+                    if (text) _onToken(text)
+                  } catch {}
+                }
+              }
+            }
+          } else {
+            const GEMINI_TOOLS = [
             {
               functionDeclarations: ANTHROPIC_TOOLS.map((t: any) => ({
                 name: t.name,
@@ -908,6 +1008,7 @@ export async function runAgentCoPilotStream(
           } else {
             _onToken(part?.text || "")
           }
+        }
         }
       } catch (err: any) {
         _onLog(`[error] ${err.message}`)
