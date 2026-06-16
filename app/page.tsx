@@ -148,7 +148,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 w-full sm:w-auto">
             <Link
               href="/register"
-              className="w-full sm:w-auto h-12 px-8 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 group font-mono"
+              className="w-full sm:w-auto h-12 px-8 bg-white text-black text-[13px] font-bold uppercase tracking-wider rounded-full hover:bg-neutral-200 transition-colors flex items-center justify-center gap-2 group font-sans"
             >
               Get Started Free
               <svg
@@ -163,7 +163,7 @@ export default function Home() {
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto h-12 px-8 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-white/5 transition-colors flex items-center justify-center font-mono"
+              className="w-full sm:w-auto h-12 px-8 border border-white/10 text-white text-[13px] font-bold uppercase tracking-wider rounded-full hover:bg-white/5 transition-colors flex items-center justify-center font-sans"
             >
               Sign In to Console
             </Link>
@@ -506,7 +506,7 @@ export default function Home() {
             <div className="flex justify-center pt-4">
               <Link
                 href="/register"
-                className="h-12 px-10 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-neutral-200 transition-colors flex items-center justify-center font-mono"
+                className="h-12 px-10 bg-white text-black text-[13px] font-bold uppercase tracking-wider rounded-full hover:bg-neutral-200 transition-colors flex items-center justify-center font-sans"
               >
                 Launch Console
               </Link>
