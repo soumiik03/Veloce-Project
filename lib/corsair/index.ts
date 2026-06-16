@@ -22,9 +22,11 @@ const pool = new Pool({
       : false,
 })
 
+console.log("[corsair] Initializing Corsair client with gmail and googlecalendar plugins...");
 export const corsair = createCorsair({
   plugins: [gmail(), googlecalendar()],
   database: pool,
   kek: process.env.CORSAIR_KEK,
   multiTenancy: true,
 })
+console.log("[corsair] Corsair client initialized successfully.");
