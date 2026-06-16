@@ -127,19 +127,7 @@ export function SidebarClient() {
       <div className="flex flex-col gap-4 overflow-hidden h-full">
         
         {}
-        <div className="flex items-center justify-between text-[#555555] px-4 pt-3.5 pb-2">
-          <div className="flex items-center gap-3">
-            <button className="w-5 h-5 flex items-center justify-center hover:text-[#e8e8e8] transition-[background,color] duration-100 ease-in cursor-pointer">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
-              </svg>
-            </button>
-            <button className="w-5 h-5 flex items-center justify-center hover:text-[#e8e8e8] transition-[background,color] duration-100 ease-in cursor-pointer">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-            </button>
-          </div>
+        <div className="flex items-center justify-end text-[#555555] px-4 pt-3.5 pb-2">
           <div className="flex items-center gap-2">
             <button onClick={() => router.back()} className="w-5 h-5 flex items-center justify-center hover:text-[#e8e8e8] transition-[background,color] duration-100 ease-in cursor-pointer">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

@@ -59,7 +59,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
   const fetchThreads = async () => {
     setLoadingThreads(true)
     try {
-      const res = await fetch("/api/emails?maxResults=20")
+      const res = await fetch("/api/emails?maxResults=20", { credentials: "include" })
       if (res.ok) {
         const data = await res.json()
         if (data.threads) {
@@ -106,7 +106,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
       try {
         
         setLoadingDetail(true)
-        const detailRes = await fetch(`/api/emails/${selectedThreadId}`)
+        const detailRes = await fetch(`/api/emails/${selectedThreadId}`, { credentials: "include" })
         if (detailRes.ok) {
           const detailData = await detailRes.json()
           setThreadDetail(detailData.thread)
@@ -114,7 +114,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
         setLoadingDetail(false)
 
         
-        const analysisRes = await fetch(`/api/emails/${selectedThreadId}/analysis`)
+        const analysisRes = await fetch(`/api/emails/${selectedThreadId}/analysis`, { credentials: "include" })
         if (analysisRes.ok) {
           const analysisData = await analysisRes.json()
           setAnalysis(analysisData)
@@ -153,6 +153,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
       const res = await fetch(`/api/agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ message: `/search ${searchQuery}` })
       })
       
@@ -178,7 +179,7 @@ export function MailPageClient({ initialThreadId }: MailPageClientProps) {
     setDraftingAI(true)
 
     const latestMessage = threadDetail.messages?.[threadDetail.messages.length - 1] || threadDetail
-    const subject = threadDetail.subject || "Re: Sync"
+    const subject = threadDetail.messages?.[0]?.payload?.headers?.find((h: any) => h.name.toLowerCase() === "subject")?.value || threadDetail.subject || "Re: Sync"
     const content = latestMessage.snippet || latestMessage.content || ""
 
     try {
@@ -195,6 +196,7 @@ Keep the response concise, clear, and direct. Output only the email body without
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({ message: prompt })
       })
 
@@ -247,6 +249,7 @@ Keep the response concise, clear, and direct. Output only the email body without
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({
           message: replyText,
           threadId: selectedThreadId
@@ -257,7 +260,7 @@ Keep the response concise, clear, and direct. Output only the email body without
         setReplyText("")
         alert("Reply successfully sent!")
         
-        const detailRes = await fetch(`/api/emails/${selectedThreadId}`)
+        const detailRes = await fetch(`/api/emails/${selectedThreadId}`, { credentials: "include" })
         if (detailRes.ok) {
           const detailData = await detailRes.json()
           setThreadDetail(detailData.thread)
@@ -289,6 +292,7 @@ Keep the response concise, clear, and direct. Output only the email body without
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({ message: prompt })
       })
 
@@ -343,6 +347,7 @@ Keep the response concise, clear, and direct. Output only the email body without
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({
           to: composeTo,
           cc: composeCc || undefined,
@@ -450,7 +455,7 @@ Keep the response concise, clear, and direct. Output only the email body without
         
         {}
         <div className="p-4 flex flex-col gap-1 border-b border-[#1a1a1a]/50">
-          {["inbox", "sent", "drafts", "trash"].map((folder) => (
+          {["inbox", "sent", "drafts"].map((folder) => (
             <button
               key={folder}
               onClick={() => setActiveFolder(folder)}
@@ -496,8 +501,8 @@ Keep the response concise, clear, and direct. Output only the email body without
               <button
                 key={thread.id}
                 onClick={() => setSelectedThreadId(thread.id)}
-                className={`w-full text-left p-4 border-b border-[#1a1a1a]/40 hover:bg-white/[0.01] transition-colors flex flex-col gap-1.5 border-0 cursor-pointer ${
-                  selectedThreadId === thread.id ? "bg-white/[0.02] border-l-2 border-white" : "bg-transparent"
+                className={`w-full text-left p-4 hover:bg-white/[0.01] transition-colors flex flex-col gap-1.5 cursor-pointer border ${
+                  selectedThreadId === thread.id ? "bg-white/[0.02] border-white rounded-lg" : "border-transparent border-b-[#1a1a1a]/40"
                 }`}
               >
                 <div className="flex justify-between items-center text-[11px] font-mono">
@@ -529,22 +534,18 @@ Keep the response concise, clear, and direct. Output only the email body without
             <header className="p-6 border-b border-[#1a1a1a]/50 flex justify-between items-center">
               <div>
                 <h1 className="text-[16px] font-semibold text-white tracking-tight leading-snug">
-                  {threadDetail?.subject || "Loading thread subject..."}
+                  {threadDetail?.messages?.[0]?.payload?.headers?.find((h: any) => h.name.toLowerCase() === "subject")?.value || threadDetail?.subject || "Loading thread subject..."}
                 </h1>
                 <p className="text-[10px] font-mono text-[#555] uppercase block mt-1">
                   THREAD ID: {selectedThreadId}
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
-                {["Reply", "Reply All", "Forward", "Archive", "Delete"].map((action) => (
+                {["Reply"].map((action) => (
                   <button
                     key={action}
                     onClick={() => {
-                      if (action === "Reply" || action === "Reply All") {
-                        textareaRef.current?.focus()
-                      } else {
-                        alert(`${action} triggered.`)
-                      }
+                      textareaRef.current?.focus()
                     }}
                     className="px-2.5 py-1 bg-[#141414] hover:bg-[#1c1c1c] border border-[#1e1e1e] text-[11px] text-[#888] hover:text-white rounded-md transition-colors cursor-pointer"
                   >
@@ -737,17 +738,7 @@ Keep the response concise, clear, and direct. Output only the email body without
 
           </div>
 
-          {}
-          <form onSubmit={handleSendAiQuery} className="p-3 border-t border-[#1a1a1a]/50 bg-[#111]/30">
-            <input
-              type="text"
-              value={aiChatQuery}
-              onChange={(e) => setAiChatQuery(e.target.value)}
-              placeholder="Ask AI about thread..."
-              disabled={sendingAiQuery}
-              className="w-full bg-[#141414] border border-[#1e1e1e] rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-[#555] focus:outline-none"
-            />
-          </form>
+
         </aside>
       )}
 

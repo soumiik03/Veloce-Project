@@ -379,6 +379,38 @@ async function executeTool(userId: string, name: string, args: any): Promise<any
         return { conflicts: [] }
       }
 
+      case "send_new_email": {
+        const { to, subject, body } = args
+        try {
+          const token = await getValidAccessToken(userId)
+          const emailHeaders = [
+            `To: ${to}`,
+            `Subject: ${subject}`,
+            "MIME-Version: 1.0",
+            'Content-Type: text/plain; charset="UTF-8"',
+            "",
+            body
+          ]
+          const raw = Buffer.from(emailHeaders.join("\r\n"))
+            .toString("base64")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/g, "")
+
+          const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ raw })
+          })
+
+          if (!res.ok) throw new Error("Failed to send email")
+          return { success: true }
+        } catch (err: any) {
+          console.error("Gmail send new email failed:", err.message)
+          throw err
+        }
+      }
+
       default:
         throw new Error(`Tool ${name} not found`)
     }
@@ -403,7 +435,9 @@ Always fetch real data before answering questions about emails or calendar.
 Be concise, direct, and action-oriented.
 When you detect a conflict or reschedule request, proactively flag it.
 Format times in the user's local timezone.
-Never send emails or modify calendar events without explicit user confirmation.`
+Never send emails or modify calendar events without explicit user confirmation.
+
+CRITICAL FORMATTING RULE: Do NOT use markdown symbols (like **, *, __, _, or bullet points with stars) in your output message. Write clean, natural plain text, using uppercase headings (e.g. SUMMARY, TIME) or standard spaces/indents for formatting. Do not output asterisks or stars.`
 
 const ANTHROPIC_TOOLS = [
   {
@@ -530,6 +564,19 @@ const ANTHROPIC_TOOLS = [
       type: "object",
       properties: {}
     }
+  },
+  {
+    name: "send_new_email",
+    description: "Send a brand new email to a recipient.",
+    input_schema: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "The recipient's email address." },
+        subject: { type: "string", description: "The subject line of the email." },
+        body: { type: "string", description: "The body content of the email." }
+      },
+      required: ["to", "subject", "body"]
+    }
   }
 ];
 
@@ -539,6 +586,8 @@ export async function runAgentCoPilotStream(
   onToken?: (text: string) => void,
   onLog?: (text: string) => void
 ): Promise<ReadableStream<string>> {
+  const currentSystemPrompt = `${SYSTEM_PROMPT}\n\nIMPORTANT: The current date and time is ${new Date().toLocaleString()} (timezone: Asia/Kolkata, current ISO time: ${new Date().toISOString()}). Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long' })}. Please parse and resolve all dates/times (e.g., relative references like "tomorrow", "this Friday", "June 19") relative to this date and time.`
+
   const openrouterKey = process.env.OPENROUTER_API_KEY
   const openrouterModel = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash"
   const geminiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
@@ -634,7 +683,7 @@ export async function runAgentCoPilotStream(
               body: JSON.stringify({
                 model: openrouterModel,
                 messages: [
-                  { role: "system", content: SYSTEM_PROMPT },
+                  { role: "system", content: currentSystemPrompt },
                   { role: "user", content: userMessage }
                 ],
                 tools: openrouterTools,
@@ -673,7 +722,7 @@ export async function runAgentCoPilotStream(
                   body: JSON.stringify({
                     model: openrouterModel,
                     messages: [
-                      { role: "system", content: SYSTEM_PROMPT },
+                      { role: "system", content: currentSystemPrompt },
                       { role: "user", content: userMessage },
                       {
                         role: "assistant",
@@ -758,7 +807,7 @@ export async function runAgentCoPilotStream(
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 systemInstruction: {
-                  parts: [{ text: SYSTEM_PROMPT }]
+                  parts: [{ text: currentSystemPrompt }]
                 },
                 contents: [
                   {
@@ -797,7 +846,7 @@ export async function runAgentCoPilotStream(
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   systemInstruction: {
-                    parts: [{ text: SYSTEM_PROMPT }]
+                    parts: [{ text: currentSystemPrompt }]
                   },
                   contents: [
                     {

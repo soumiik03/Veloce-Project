@@ -23,11 +23,12 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
   const [inputText, setInputText] = useState("")
   const [loading, setLoading] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState("")
+  const [thinking, setThinking] = useState(false)
   
   
-  const [activeModel, setActiveModel] = useState("Sonnet 4.6")
+  const [activeModel, setActiveModel] = useState("veloce pro")
   const [showModels, setShowModels] = useState(false)
-  const models = ["Sonnet 4.6", "Haiku 1.0", "Gemini 2.5 Pro"]
+  const models = ["veloce pro"]
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -110,6 +111,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
     const userMsg: ChatMessage = { role: "user", content: messageContent }
     setMessages(prev => [...prev, userMsg])
     setStreamingMessage("")
+    setThinking(true)
 
     try {
       const res = await fetch("/api/agent", {
@@ -153,6 +155,7 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
           try {
             const parsed = JSON.parse(jsonStr)
             if (parsed.text) {
+              setThinking(false)
               accumulatedText += parsed.text
               setStreamingMessage(accumulatedText)
             }
@@ -179,6 +182,8 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
         { role: "assistant", content: `Error: ${err.message || "Failed to connect to AI agent."}` }
       ])
       setStreamingMessage("")
+    } finally {
+      setThinking(false)
     }
   }
 
@@ -228,51 +233,13 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
               />
               
               <div className="flex items-center justify-between border-t border-[#1e1e1e]/60 pt-3 mt-1 text-[#555]">
-                {}
-                <div className="flex items-center gap-3">
-                  <button className="hover:text-white transition-colors cursor-pointer" title="Add context">
-                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                  </button>
-                </div>
+                <div></div>
                 
                 {}
                 <div className="flex items-center gap-3.5 relative">
-                  <button 
-                    onClick={() => setShowModels(!showModels)}
-                    className="text-[12px] font-mono text-[#888] hover:text-white cursor-pointer select-none flex items-center gap-1 bg-transparent border-0"
-                  >
-                    {activeModel}
-                    <svg className="w-3 h-3 text-[#555]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                  </button>
-                  
-                  {showModels && (
-                    <div className="absolute bottom-full right-14 mb-2 w-36 bg-[#161616] border border-[#222] rounded-xl p-1 shadow-2xl flex flex-col gap-0.5 z-30">
-                      {models.map((m) => (
-                        <button
-                          key={m}
-                          onClick={() => {
-                            setActiveModel(m)
-                            setShowModels(false)
-                          }}
-                          className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer border-0 ${
-                            activeModel === m ? "bg-white/5 text-white" : "text-[#888] hover:text-white hover:bg-white/[0.02]"
-                          }`}
-                        >
-                          {m}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  <button className="hover:text-white transition-colors cursor-pointer" title="Voice input">
-                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
-                    </svg>
-                  </button>
+                  <span className="text-[13px] font-sans font-semibold tracking-wide text-neutral-300 select-none">
+                    Veloce Pro
+                  </span>
                   
                   <button 
                     onClick={() => handleSend()}
@@ -354,6 +321,18 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
                     </div>
                   </div>
                 )}
+
+                {thinking && !streamingMessage && (
+                  <div className="flex flex-col gap-1.5 items-start mr-auto max-w-[85%] animate-pulse">
+                    <span className="text-[10px] font-mono uppercase text-[#444] tracking-wider">
+                      Veloce
+                    </span>
+                    <div className="p-4 text-sm leading-relaxed text-[#888] px-0 py-1 flex items-center gap-2">
+                      <span className="inline-block w-2 h-2 rounded-full bg-[#5aa3e8] animate-ping"></span>
+                      <span>Thinking and scanning telemetry...</span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
             <div ref={messagesEndRef} />
@@ -365,11 +344,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
       {(messages.length > 0 || streamingMessage) && (
         <div className="bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d] to-transparent pt-6 pb-6 px-6 relative z-10 shrink-0">
           <div className="bg-[#141414] border border-[#1e1e1e] rounded-2xl p-3 flex items-center gap-3 max-w-2xl mx-auto w-full relative shadow-2xl">
-            <button className="text-[#555] hover:text-white transition-colors cursor-pointer" title="Add context">
-              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </button>
             
             <textarea
               value={inputText}
@@ -382,11 +356,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
             />
             
             <div className="flex items-center gap-3">
-              <button className="text-[#555] hover:text-white transition-colors cursor-pointer" title="Voice input">
-                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
-                </svg>
-              </button>
               
               <button 
                 onClick={() => handleSend()}

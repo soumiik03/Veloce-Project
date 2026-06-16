@@ -17,7 +17,7 @@ function SettingsContent() {
   }>({ gmail: false, googlecalendar: false, connected: false })
 
   
-  const [selectedModel, setSelectedModel] = useState("Sonnet 4.6")
+  const [selectedModel, setSelectedModel] = useState("veloce pro")
   const [bufferSize, setBufferSize] = useState(15)
   const [timezone, setTimezone] = useState("America/New_York")
   const [workingHoursStart, setWorkingHoursStart] = useState("09:00")
@@ -179,7 +179,7 @@ function SettingsContent() {
 
             <div className="grid grid-cols-3 gap-3">
               {[
-                { name: "Sonnet 4.6", desc: "Highest intelligence" },
+                { name: "veloce pro", desc: "Highest intelligence" },
                 { name: "Haiku 1.0", desc: "Fastest response time" },
                 { name: "Opus 3.0", desc: "Complex reasonings" }
               ].map((model) => (

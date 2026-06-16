@@ -37,7 +37,7 @@ export function CalendarPageClient() {
   
   const [quickInput, setQuickInput] = useState("")
   const [creating, setCreating] = useState(false)
-  const [quickCreateLogs, setQuickCreateLogs] = useState<string[]>([])
+  const [quickChatLogs, setQuickChatLogs] = useState<{ role: "user" | "assistant"; text: string }[]>([])
 
   
   const fetchEvents = async () => {
@@ -48,7 +48,7 @@ export function CalendarPageClient() {
       const endRange = new Date(tomorrow)
       endRange.setDate(tomorrow.getDate() + 7)
 
-      const res = await fetch(`/api/calendar/events?timeMin=${tomorrow.toISOString()}&timeMax=${endRange.toISOString()}`)
+      const res = await fetch(`/api/calendar/events?timeMin=${tomorrow.toISOString()}&timeMax=${endRange.toISOString()}`, { credentials: "include" })
       if (res.ok) {
         const data = await res.json()
         const eventItems = Array.isArray(data) ? data : data.items
@@ -67,7 +67,7 @@ export function CalendarPageClient() {
   const fetchConflicts = async () => {
     setLoadingConflicts(true)
     try {
-      const res = await fetch("/api/calendar/conflicts")
+      const res = await fetch("/api/calendar/conflicts", { credentials: "include" })
       if (res.ok) {
         const data = await res.json()
         if (data.conflicts) {
@@ -124,7 +124,8 @@ export function CalendarPageClient() {
     if (!confirm("Are you sure you want to delete this event?")) return
     try {
       const res = await fetch(`/api/calendar/events/${eventId}`, {
-        method: "DELETE"
+        method: "DELETE",
+        credentials: "include"
       })
       if (res.ok) {
         setEvents(prev => prev.filter(e => e.id !== eventId))
@@ -147,6 +148,7 @@ export function CalendarPageClient() {
       const patchRes = await fetch(`/api/calendar/events/${activeConflict.currentEventId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           event: {
             start: { dateTime: chosenSlot },
@@ -165,6 +167,7 @@ export function CalendarPageClient() {
       const emailRes = await fetch(`/api/emails`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           to: activeConflict.sender,
           subject: `Rescheduled: ${activeConflict.emailSubject}`,
@@ -199,7 +202,8 @@ export function CalendarPageClient() {
     const input = quickInput.trim()
     setQuickInput("")
     setCreating(true)
-    setQuickCreateLogs(["[TELEMETRY] Intercepting natural language command...", `[PROMPT] "${input}"`])
+
+    setQuickChatLogs(prev => [...prev, { role: "user", text: input }])
 
     try {
       const res = await fetch("/api/agent", {
@@ -207,6 +211,7 @@ export function CalendarPageClient() {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({ message: input })
       })
 
@@ -215,7 +220,10 @@ export function CalendarPageClient() {
       const reader = res.body?.getReader()
       if (!reader) throw new Error("No response reader")
 
+      setQuickChatLogs(prev => [...prev, { role: "assistant", text: "" }])
+
       const decoder = new TextDecoder()
+      let accumulatedText = ""
       let buffer = ""
 
       while (true) {
@@ -233,19 +241,22 @@ export function CalendarPageClient() {
           const jsonStr = trimmed.slice(5).trim()
           try {
             const parsed = JSON.parse(jsonStr)
-            if (parsed.log) {
-              setQuickCreateLogs(prev => [...prev, parsed.log])
-            }
             if (parsed.text) {
-              setQuickCreateLogs(prev => [...prev, parsed.text])
+              accumulatedText += parsed.text
+              setQuickChatLogs(prev => {
+                const next = [...prev]
+                const last = { ...next[next.length - 1] }
+                last.text = accumulatedText
+                next[next.length - 1] = last
+                return next
+              })
             }
           } catch {}
         }
       }
-      setQuickCreateLogs(prev => [...prev, "[SUCCESS] Event creation cycle finished."])
       fetchEvents()
     } catch (err: any) {
-      setQuickCreateLogs(prev => [...prev, `[ERROR] Event creation failed: ${err.message}`])
+      setQuickChatLogs(prev => [...prev, { role: "assistant", text: `Error: ${err.message}` }])
     } finally {
       setCreating(false)
     }
@@ -391,48 +402,17 @@ export function CalendarPageClient() {
               <span>Total meeting load:</span>
               <span className="font-mono text-white font-semibold">{durationHours}h</span>
             </div>
-            <button
-              onClick={handleFindFocusTime}
-              className="mt-2.5 w-full py-1.5 bg-[#1e3a5f]/15 hover:bg-[#1e3a5f]/30 border border-[#5aa3e8]/20 text-[#5aa3e8] text-[10px] font-mono rounded-lg transition-colors cursor-pointer"
-            >
-              ⚡ Find best focus time
-            </button>
           </div>
         </div>
 
         {}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold">
-            Conflict Resolution Queue
+            Calendar Operational Status
           </span>
-          {loadingConflicts ? (
-            <div className="text-[11px] text-[#444] font-mono animate-pulse">Scanning scheduling conflicts...</div>
-          ) : conflicts.length === 0 ? (
-            <div className="p-4 border border-[#1e1e1e]/60 bg-[#141414]/40 rounded-xl text-center text-[10px] font-mono text-[#444] italic">
-              No conflict vectors flagged.
-            </div>
-          ) : (
-            conflicts.map((conflict) => (
-              <div
-                key={conflict.id}
-                className="p-3 bg-[#d97706]/5 border border-[#d97706]/20 rounded-xl flex flex-col gap-2"
-              >
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#d97706]">
-                  <span>⚠</span>
-                  <span className="truncate max-w-[170px]">{conflict.currentEventSummary}</span>
-                </div>
-                <p className="text-[10.5px] text-[#888] leading-relaxed line-clamp-2">
-                  {conflict.emailSnippet}
-                </p>
-                <button
-                  onClick={() => setActiveConflict(conflict)}
-                  className="w-full py-1.5 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[10px] font-mono rounded-lg transition-colors cursor-pointer border-0 font-semibold"
-                >
-                  Resolve Conflict ↻
-                </button>
-              </div>
-            ))
-          )}
+          <p className="text-[11.5px] text-[#666] font-sans leading-relaxed">
+            Calendar telemetry is synchronized in real-time with Google Calendar. The Veloce Pro co-pilot acts upon conflict rules calibrated in your Settings Console.
+          </p>
         </div>
 
         {}
@@ -441,10 +421,15 @@ export function CalendarPageClient() {
             Quick Event Pilot
           </span>
           
-          {quickCreateLogs.length > 0 && (
-            <div className="mb-3 max-h-[80px] overflow-y-auto p-2 bg-[#141414] border border-[#1e1e1e] rounded-lg text-[9px] font-mono text-[#666] space-y-1">
-              {quickCreateLogs.map((log, idx) => (
-                <div key={idx} className="truncate">{log}</div>
+          {quickChatLogs.length > 0 && (
+            <div className="mb-3 h-[180px] overflow-y-auto p-2.5 bg-[#141414] border border-[#1e1e1e] rounded-xl text-[11px] space-y-2">
+              {quickChatLogs.map((chat, idx) => (
+                <div key={idx} className="flex flex-col gap-0.5 leading-relaxed">
+                  <span className="font-mono text-[9px] text-[#555] uppercase font-bold">
+                    {chat.role === "user" ? "You" : "Veloce"}
+                  </span>
+                  <p className="text-[#aaa] font-light font-sans whitespace-pre-wrap">{chat.text}</p>
+                </div>
               ))}
             </div>
           )}
@@ -455,7 +440,7 @@ export function CalendarPageClient() {
               type="text"
               value={quickInput}
               onChange={(e) => setQuickInput(e.target.value)}
-              placeholder="e.g. Sync with John Friday at 2pm..."
+              placeholder="Schedule an event or ask a question..."
               disabled={creating}
               className="w-full bg-[#141414] border border-[#1e1e1e] rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-[#444] focus:outline-none"
             />
