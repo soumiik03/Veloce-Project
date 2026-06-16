@@ -16,7 +16,6 @@ async function handleCronTrigger(req: NextRequest) {
   console.log("🌅 [Cron] Triggering Daily Morning Briefing...")
 
   try {
-    // 1. Fetch all users who have morningBriefingEnabled set to true
     const activeUsers = await db
       .select()
       .from(users)

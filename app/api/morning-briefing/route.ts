@@ -11,7 +11,6 @@ export async function POST(req: NextRequest) {
     let userId = ""
     let userRecord = null
 
-    // Try to get session user from cookies
     const sessionUser = await getSessionUser(req).catch(() => null)
     if (sessionUser?.id) {
       userId = sessionUser.id
@@ -19,7 +18,6 @@ export async function POST(req: NextRequest) {
       const records = await db.select().from(users).where(eq(users.clerkId, sessionUser.clerkId)).limit(1)
       userRecord = records[0]
     } else {
-      // Fallback: Read userEmail from POST body (for cron job or manual trigger)
       try {
         const body = await req.json()
         if (body?.userEmail) {
