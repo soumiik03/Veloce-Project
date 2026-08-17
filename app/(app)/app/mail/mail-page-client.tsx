@@ -450,10 +450,8 @@ Keep the response concise, clear, and direct. Output only the email body without
   return (
     <div className="flex-1 flex h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden select-none">
       
-      {}
       <aside className="w-[280px] border-r-[0.5px] border-[#1a1a1a] flex flex-col min-h-0 bg-[#0d0d0d] shrink-0">
         
-        {}
         <div className="p-4 flex flex-col gap-1 border-b border-[#1a1a1a]/50">
           {["inbox", "sent", "drafts"].map((folder) => (
             <button
@@ -475,7 +473,6 @@ Keep the response concise, clear, and direct. Output only the email body without
           ))}
         </div>
 
-        {}
         <form onSubmit={handleSearch} className="p-3 border-b border-[#1a1a1a]/50">
           <input
             type="text"
@@ -486,7 +483,6 @@ Keep the response concise, clear, and direct. Output only the email body without
           />
         </form>
 
-        {}
         <div className="flex-1 overflow-y-auto">
           {loadingThreads ? (
             <div className="p-8 text-center text-xs text-[#555] font-mono animate-pulse">
@@ -526,11 +522,9 @@ Keep the response concise, clear, and direct. Output only the email body without
         </div>
       </aside>
 
-      {}
       <section className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d]">
         {selectedThreadId ? (
           <div className="flex-1 flex flex-col min-h-0">
-            {}
             <header className="p-6 border-b border-[#1a1a1a]/50 flex justify-between items-center">
               <div>
                 <h1 className="text-[16px] font-semibold text-white tracking-tight leading-snug">
@@ -555,7 +549,6 @@ Keep the response concise, clear, and direct. Output only the email body without
               </div>
             </header>
 
-            {}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {loadingDetail ? (
                 <div className="py-24 text-center text-xs text-[#555] font-mono animate-pulse">
@@ -591,7 +584,6 @@ Keep the response concise, clear, and direct. Output only the email body without
               )}
             </div>
 
-            {}
             <div className="p-6 border-t border-[#1a1a1a]/50 bg-[#111]/30">
               <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-3 flex flex-col gap-3">
                 <textarea
@@ -636,12 +628,10 @@ Keep the response concise, clear, and direct. Output only the email body without
         )}
       </section>
 
-      {}
       {selectedThreadId && (
         <aside className="w-[220px] border-l-[0.5px] border-[#1a1a1a] flex flex-col min-h-0 bg-[#0d0d0d] shrink-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             
-            {}
             <div className="flex flex-col gap-2">
               <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
                 AI Summary
@@ -655,7 +645,6 @@ Keep the response concise, clear, and direct. Output only the email body without
               )}
             </div>
 
-            {}
             <div className="flex flex-col gap-2">
               <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
                 Action Items
@@ -673,7 +662,6 @@ Keep the response concise, clear, and direct. Output only the email body without
               )}
             </div>
 
-            {}
             <div className="flex flex-col gap-3">
               <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
                 Context Signals
@@ -698,7 +686,6 @@ Keep the response concise, clear, and direct. Output only the email body without
               </div>
             </div>
 
-            {}
             {analysis?.suggestedReplies && analysis.suggestedReplies.length > 0 && (
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block border-b border-[#1a1a1a]/50 pb-1.5 font-bold">
@@ -719,7 +706,6 @@ Keep the response concise, clear, and direct. Output only the email body without
               </div>
             )}
 
-            {}
             {aiChatLogs.length > 0 && (
               <div className="flex flex-col gap-2.5 pt-2 border-t border-[#1a1a1a]/50">
                 <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold">
@@ -742,12 +728,10 @@ Keep the response concise, clear, and direct. Output only the email body without
         </aside>
       )}
 
-      {}
       {showCompose && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
           <div className="w-full max-w-[500px] bg-[#111] border border-[#1e1e1e] rounded-xl flex flex-col shadow-2xl">
             
-            {}
             <header className="p-4 border-b border-[#1a1a1a]/60 flex justify-between items-center">
               <span className="text-xs font-semibold text-white font-mono">NEW EMAIL</span>
               <button 
@@ -758,10 +742,8 @@ Keep the response concise, clear, and direct. Output only the email body without
               </button>
             </header>
 
-            {}
             <div className="p-5 flex flex-col gap-4">
               
-              {}
               <div className="flex flex-col gap-2.5">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-[#555] font-mono w-10 text-right">To:</span>
@@ -795,7 +777,6 @@ Keep the response concise, clear, and direct. Output only the email body without
                 </div>
               </div>
 
-              {}
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-[#555] font-mono w-10 text-right">Subj:</span>
                 <input
@@ -807,7 +788,6 @@ Keep the response concise, clear, and direct. Output only the email body without
                 />
               </div>
 
-              {}
               <textarea
                 value={composeContent}
                 onChange={(e) => setComposeContent(e.target.value)}
@@ -816,7 +796,6 @@ Keep the response concise, clear, and direct. Output only the email body without
                 className="w-full bg-[#141414] border border-[#1e1e1e] rounded-md p-3 text-xs text-white placeholder-[#444] focus:outline-none resize-none leading-relaxed"
               />
 
-              {}
               <div className="flex justify-between items-center border-t border-[#1a1a1a]/50 pt-4 mt-2">
                 <button
                   onClick={handleAIWrite}

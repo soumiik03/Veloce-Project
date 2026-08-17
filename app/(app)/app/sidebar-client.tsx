@@ -126,7 +126,6 @@ export function SidebarClient() {
     <aside className="w-[240px] bg-[#111111] border-r-[0.5px] border-[#1a1a1a] flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 select-none">
       <div className="flex flex-col gap-4 overflow-hidden h-full">
         
-        {}
         <div className="flex items-center justify-end text-[#555555] px-4 pt-3.5 pb-2">
           <div className="flex items-center gap-2">
             <button onClick={() => router.back()} className="w-5 h-5 flex items-center justify-center hover:text-[#e8e8e8] transition-[background,color] duration-100 ease-in cursor-pointer">
@@ -142,7 +141,6 @@ export function SidebarClient() {
           </div>
         </div>
 
-        {}
         <div className="bg-[#1a1a1a] p-[3px] rounded-[20px] flex items-center justify-between mx-3 mb-3">
           <Link 
             href="/app/chat" 
@@ -176,7 +174,6 @@ export function SidebarClient() {
           </Link>
         </div>
 
-        {}
         <button
           onClick={handleNewThreadClick}
           className="flex items-center justify-center gap-2 mx-3 py-2 bg-[#1e1e1e] border border-[#2a2a2a] hover:bg-[#252525] text-[#e0e0e0] text-[13px] font-medium rounded-lg transition-[background] duration-100 ease-in cursor-pointer select-none"
@@ -184,7 +181,6 @@ export function SidebarClient() {
           <span>+ New thread</span>
         </button>
 
-        {}
         <div className="flex flex-col gap-1 text-[13px]">
           <Link
             href="/app/chat"
@@ -228,7 +224,6 @@ export function SidebarClient() {
           </Link>
         </div>
 
-        {}
         <div className="flex-1 flex flex-col min-h-0 px-3">
           <span className="text-[10px] font-mono font-semibold text-[#333333] uppercase tracking-wider mb-2 select-none">
             RECENTS
@@ -263,7 +258,6 @@ export function SidebarClient() {
 
       </div>
 
-      {}
       <div className="border-t-[0.5px] border-[#1a1a1a] p-4 flex flex-col gap-2 shrink-0 bg-[#111111]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 overflow-hidden">

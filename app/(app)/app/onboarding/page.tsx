@@ -74,7 +74,6 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-screen bg-[#050505] relative overflow-hidden select-none">
-      {}
       <div className="pointer-events-none absolute w-[400px] h-[400px] rounded-full bg-indigo-500/5 blur-[100px] -z-10 animate-pulse"></div>
 
       <div className="text-center mb-12 max-w-lg">
@@ -93,7 +92,6 @@ export default function OnboardingPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl mb-10">
-        {}
         <div className={`p-6 border rounded-2xl flex flex-col justify-between h-[220px] transition-all duration-300 relative overflow-hidden ${
           gmailConnected 
             ? "bg-emerald-950/10 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.02)]" 
@@ -121,7 +119,6 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {}
         <div className={`p-6 border rounded-2xl flex flex-col justify-between h-[220px] transition-all duration-300 relative overflow-hidden ${
           calendarConnected 
             ? "bg-emerald-950/10 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.02)]" 

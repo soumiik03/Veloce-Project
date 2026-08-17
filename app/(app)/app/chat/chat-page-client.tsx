@@ -211,7 +211,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
   return (
     <div className="flex-1 flex flex-col h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden">
       
-      {}
       <div className="flex-1 overflow-y-auto px-6 py-8 md:px-12 lg:px-24">
         {messages.length === 0 && !streamingMessage ? (
           
@@ -220,7 +219,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
               Happy {activeDayName}, {firstName}
             </h1>
             
-            {}
             <div className="w-full bg-[#141414] border border-[#1e1e1e] rounded-2xl p-4 shadow-xl text-left flex flex-col gap-3">
               <textarea
                 ref={textareaRef}
@@ -235,7 +233,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
               <div className="flex items-center justify-between border-t border-[#1e1e1e]/60 pt-3 mt-1 text-[#555]">
                 <div></div>
                 
-                {}
                 <div className="flex items-center gap-3.5 relative">
                   <span className="text-[13px] font-sans font-semibold tracking-wide text-neutral-300 select-none">
                     Veloce Pro
@@ -258,7 +255,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
               </div>
             </div>
 
-            {}
             <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
               <button 
                 onClick={() => handleQuickAction("reschedule")}
@@ -309,7 +305,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
                   </div>
                 ))}
                 
-                {}
                 {streamingMessage && (
                   <div className="flex flex-col gap-1.5 items-start mr-auto max-w-[85%]">
                     <span className="text-[10px] font-mono uppercase text-[#444] tracking-wider">
@@ -340,7 +335,6 @@ export function ChatPageClient({ id }: ChatPageClientProps) {
         )}
       </div>
 
-      {}
       {(messages.length > 0 || streamingMessage) && (
         <div className="bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d] to-transparent pt-6 pb-6 px-6 relative z-10 shrink-0">
           <div className="bg-[#141414] border border-[#1e1e1e] rounded-2xl p-3 flex items-center gap-3 max-w-2xl mx-auto w-full relative shadow-2xl">

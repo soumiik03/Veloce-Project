@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleCronTrigger(req: NextRequest) {
-  console.log("🌅 [Cron] Triggering Daily Morning Briefing...")
 
   try {
     const activeUsers = await db
@@ -22,16 +21,13 @@ async function handleCronTrigger(req: NextRequest) {
       .where(eq(users.morningBriefingEnabled, true))
 
     if (activeUsers.length === 0) {
-      console.log("🌅 [Cron] No active users with morning briefing enabled.")
       return NextResponse.json({ success: true, count: 0, message: "No active users with morning briefing enabled." })
     }
 
-    console.log(`🌅 [Cron] Found ${activeUsers.length} users with morning briefing enabled. Processing...`)
 
     const results = await Promise.allSettled(
       activeUsers.map(async (user) => {
         try {
-          console.log(`🌅 [Cron] Dispatching briefing for user: ${user.email} (id: ${user.id})`)
           const res = await sendMorningBriefingToUser(user.id, user.email)
           return { email: user.email, success: true, briefing: res.briefing }
         } catch (err: any) {

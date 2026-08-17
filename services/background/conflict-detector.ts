@@ -96,7 +96,6 @@ export async function detectConflicts(userId: string) {
     return await getCache(cacheKey)
   }
 
-  console.log(`[Conflict Detector] Starting scan for user ${userId}...`)
 
   try {
     
@@ -214,7 +213,6 @@ export async function detectConflicts(userId: string) {
     await setCache(cacheKey, conflicts, 300) 
     await setCache(`last_conflict_run:${userId}`, "true", 60) 
     
-    console.log(`[Conflict Detector] Completed. Found ${conflicts.length} conflicts.`)
     return conflicts
   } catch (error) {
     console.error("[Conflict Detector] Execution error:", error)

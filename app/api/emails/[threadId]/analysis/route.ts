@@ -117,7 +117,7 @@ Do NOT wrap in code fences. Do NOT add any text before or after the JSON. Return
         throw new Error("OpenRouter failed and GEMINI_API_KEY is not configured for fallback")
       }
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

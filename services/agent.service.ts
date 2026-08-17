@@ -98,7 +98,7 @@ Do NOT wrap in code fences. Return ONLY the JSON object.`
       throw new Error("OpenRouter failed and GEMINI_API_KEY is not configured for fallback")
     }
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,7 +149,6 @@ Do NOT wrap in code fences. Return ONLY the JSON object.`
 }
 
 async function executeTool(userId: string, name: string, args: any): Promise<any> {
-  console.log(`[Agent Tool Execution] Running ${name} with args:`, args)
 
   try {
     switch (name) {
@@ -845,7 +844,7 @@ export async function runAgentCoPilotStream(
           
           if (noTools) {
             const response = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:streamGenerateContent?key=${geminiKey}&alt=sse`,
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=${geminiKey}&alt=sse`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -901,7 +900,7 @@ export async function runAgentCoPilotStream(
           ]
 
           const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -940,7 +939,7 @@ export async function runAgentCoPilotStream(
             const toolResult = await executeTool(userId, name, args)
 
             const sseResponse = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:streamGenerateContent?key=${geminiKey}&alt=sse`,
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=${geminiKey}&alt=sse`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

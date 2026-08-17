@@ -279,7 +279,6 @@ export function CalendarPageClient() {
   return (
     <div className="flex-1 flex h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-hidden select-none">
       
-      {}
       <section className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d] p-6">
         <header className="flex justify-between items-center pb-4 border-b border-[#1a1a1a]/50 mb-6">
           <div>
@@ -308,7 +307,6 @@ export function CalendarPageClient() {
           </div>
         </header>
 
-        {}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="h-full flex items-center justify-center text-xs text-[#555] font-mono animate-pulse">
@@ -330,7 +328,6 @@ export function CalendarPageClient() {
                       isToday ? "border-[#5aa3e8]/45 ring-1 ring-[#5aa3e8]/20" : ""
                     }`}
                   >
-                    {}
                     <div className={`p-3 text-center border-b border-[#1e1e1e]/60 flex flex-col gap-0.5 ${
                       isToday ? "bg-[#1e3a5f]/20" : "bg-[#111]/60"
                     }`}>
@@ -342,7 +339,6 @@ export function CalendarPageClient() {
                       </span>
                     </div>
 
-                    {}
                     <div className="flex-1 p-2.5 overflow-y-auto space-y-2">
                       {dayEvents.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-[10px] text-[#333] font-mono font-medium tracking-widest">
@@ -364,7 +360,6 @@ export function CalendarPageClient() {
                               <span className="text-[9px] font-mono text-[#555]">
                                 {startStr}
                               </span>
-                              {}
                               <button
                                 onClick={() => handleDeleteEvent(evt.id)}
                                 className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-[#444] hover:text-red-400 transition-opacity border-0 bg-transparent text-[10px] cursor-pointer"
@@ -385,10 +380,8 @@ export function CalendarPageClient() {
         </div>
       </section>
 
-      {}
       <aside className="w-[260px] border-l-[0.5px] border-[#1a1a1a] flex flex-col min-h-0 bg-[#0d0d0d] shrink-0">
         
-        {}
         <div className="p-4 border-b border-[#1a1a1a]/50">
           <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold mb-3">
             This Week Summary
@@ -405,7 +398,6 @@ export function CalendarPageClient() {
           </div>
         </div>
 
-        {}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold">
             Calendar Operational Status
@@ -415,7 +407,6 @@ export function CalendarPageClient() {
           </p>
         </div>
 
-        {}
         <div className="p-4 border-t border-[#1a1a1a]/50 bg-[#111]/30">
           <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold mb-2">
             Quick Event Pilot
@@ -449,12 +440,10 @@ export function CalendarPageClient() {
 
       </aside>
 
-      {}
       {activeConflict && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
           <div className="w-[380px] bg-[#111] border-l border-[#1e1e1e] p-6 flex flex-col justify-between shadow-2xl animate-slide-in h-screen">
             
-            {}
             <div className="space-y-4">
               <div className="flex justify-between items-center border-b border-[#1e1e1e]/60 pb-3">
                 <span className="text-xs font-semibold text-white font-mono uppercase tracking-wider">
@@ -468,7 +457,6 @@ export function CalendarPageClient() {
                 </button>
               </div>
 
-              {}
               <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-3.5 space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-mono text-[#666]">
                   <span className="font-semibold text-[#888]">{activeConflict.sender}</span>
@@ -482,7 +470,6 @@ export function CalendarPageClient() {
                 </p>
               </div>
 
-              {}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-mono text-[#555] uppercase block">
                   Current Blocked Slot
@@ -495,7 +482,6 @@ export function CalendarPageClient() {
                 </div>
               </div>
 
-              {}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-mono text-[#555] uppercase block">
                   Suggested Slots (Open Buffer)
@@ -516,7 +502,6 @@ export function CalendarPageClient() {
               </div>
             </div>
 
-            {}
             <div className="border-t border-[#1a1a1a]/60 pt-4 flex gap-2">
               <button
                 onClick={() => setActiveConflict(null)}

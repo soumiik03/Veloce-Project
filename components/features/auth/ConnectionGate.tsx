@@ -17,8 +17,6 @@ export function ConnectionGate({ status, onConnect, onBypass, connectingPlugin }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d0d] p-6">
       <div className="w-full max-w-[420px] bg-[#111111] border border-[#1e1e1e] rounded-xl p-8 flex flex-col items-center">
-        
-        {}
         <h1 className="text-[20px] font-bold tracking-[0.15em] text-[#e8e8e8] uppercase mb-1 font-sans">
           VELOCE
         </h1>
@@ -26,9 +24,7 @@ export function ConnectionGate({ status, onConnect, onBypass, connectingPlugin }
           Connect your accounts
         </p>
 
-        {}
         <div className="w-full bg-[#141414] border border-[#1e1e1e] rounded-lg p-5 space-y-5 mb-8 text-left">
-          {}
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
@@ -50,7 +46,6 @@ export function ConnectionGate({ status, onConnect, onBypass, connectingPlugin }
             )}
           </div>
 
-          {}
           <div className="flex items-center justify-between border-t border-[#1e1e1e]/60 pt-4">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
@@ -73,7 +68,6 @@ export function ConnectionGate({ status, onConnect, onBypass, connectingPlugin }
           </div>
         </div>
 
-        {}
         <button
           onClick={onBypass}
           disabled={!status.gmail || !status.googlecalendar}

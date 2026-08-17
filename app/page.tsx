@@ -29,14 +29,12 @@ export default function Home() {
   return (
     <div className="w-full min-h-screen bg-[#050505] text-[#e5e5e5] font-sans selection:bg-white selection:text-black relative overflow-hidden">
       
-      {}
       <style dangerouslySetInnerHTML={{ __html: `
         #neuro { display: none !important; }
         body { background-color: #050505 !important; }
         ::-webkit-scrollbar-thumb:hover { background: #525252 !important; }
       ` }} />
 
-      {}
       <div className="absolute inset-0 pointer-events-none z-0 opacity-20">
         <div className="max-w-[1400px] h-full mx-auto px-6 md:px-12 flex justify-between relative">
           <div className="w-[1px] h-full bg-white/10"></div>
@@ -46,10 +44,8 @@ export default function Home() {
         </div>
       </div>
 
-      {}
       <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#050505]/85 backdrop-blur-xl">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12 h-14 flex items-center justify-between md:grid md:grid-cols-3">
-          {}
           <div className="flex items-center justify-start">
             <a href="#" className="flex items-center gap-2.5 group">
               <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -64,7 +60,6 @@ export default function Home() {
             </a>
           </div>
 
-          {}
           <div className="hidden md:flex items-center justify-center gap-8">
             <a href="#features" className="text-[13px] font-medium text-neutral-350 hover:text-white transition-colors duration-200">
               Features
@@ -80,7 +75,6 @@ export default function Home() {
             </a>
           </div>
 
-          {}
           <div className="flex items-center justify-end gap-4">
             <Show when="signed-out">
               <Link
@@ -109,11 +103,9 @@ export default function Home() {
         </div>
       </nav>
 
-      {}
       <section className="relative min-h-[90vh] flex flex-col justify-center items-center text-center pt-28 pb-16 px-6 relative z-10 max-w-5xl mx-auto">
         <div className="space-y-8 animate-fade-up">
           
-          {}
           <div className="inline-flex gap-2 text-[10px] uppercase font-bold text-neutral-300 tracking-widest bg-white/5 border border-white/10 rounded-full py-1.5 px-4 backdrop-blur-sm items-center shadow-[0_0_15px_rgba(255,255,255,0.02)]">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
@@ -122,7 +114,6 @@ export default function Home() {
             VELOCE 1.0 — GMAIL & CALENDAR AUTOPILOT
           </div>
 
-          {}
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tighter text-white leading-[0.95] font-display">
             ELIMINATE
             <br />
@@ -131,14 +122,12 @@ export default function Home() {
             </span>
           </h1>
 
-          {}
           <p className="text-sm md:text-base text-neutral-400 max-w-xl mx-auto leading-relaxed font-light font-body">
             Veloce scans incoming email scheduling signals, runs timezone translations, 
             maps calendar availability, and drafts context-aware replies. 
             You review the invitation and click send in one click.
           </p>
 
-          {}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 w-full sm:w-auto">
             <Link
               href="/register"
@@ -165,7 +154,6 @@ export default function Home() {
         </div>
       </section>
 
-      {}
       <section className="border-y border-white/5 bg-white/[0.01] overflow-hidden py-5 z-10 relative">
         <div className="flex whitespace-nowrap animate-scroll">
           <div className="flex gap-20 items-center px-10 opacity-30 text-[10px] uppercase tracking-[0.25em] font-mono text-white">
@@ -183,7 +171,6 @@ export default function Home() {
             <span>•</span>
             <span>Corsair Core</span>
           </div>
-          {}
           <div className="flex gap-20 items-center px-10 opacity-30 text-[10px] uppercase tracking-[0.25em] font-mono text-white">
             <span>VELOCE</span>
             <span>•</span>
@@ -202,7 +189,6 @@ export default function Home() {
         </div>
       </section>
 
-      {}
       <section id="features" className="max-w-[1400px] mx-auto pt-32 px-6 md:px-12 pb-4 relative z-10">
         <div className="flex justify-between items-end mb-12">
           <div>
@@ -221,7 +207,6 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {}
           <div className="md:col-span-2 group bento-card border-neutral-900 hover:border-white/15 p-8 flex flex-col justify-between h-[360px]">
             <div>
               <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/5 text-neutral-300 border border-white/10 uppercase tracking-wider mb-4 font-mono">
@@ -236,7 +221,6 @@ export default function Home() {
               </p>
             </div>
             
-            {}
             <div className="bg-black/40 border border-white/5 rounded-xl p-4 font-mono text-[9px] text-neutral-500 max-w-sm mt-4">
               <div className="flex justify-between text-neutral-400 mb-1 border-b border-white/5 pb-1">
                 <span>[INBOX STREAM]</span>
@@ -247,7 +231,6 @@ export default function Home() {
             </div>
           </div>
 
-          {}
           <div className="group bento-card border-neutral-900 hover:border-white/15 p-8 flex flex-col justify-between h-[360px]">
             <div>
               <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/5 text-neutral-300 border border-white/10 uppercase tracking-wider mb-4 font-mono">
@@ -267,7 +250,6 @@ export default function Home() {
             </div>
           </div>
 
-          {}
           <div className="group bento-card border-neutral-900 hover:border-white/15 p-8 flex flex-col justify-between h-[360px]">
             <div>
               <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/5 text-neutral-300 border border-white/10 uppercase tracking-wider mb-4 font-mono">
@@ -288,7 +270,6 @@ export default function Home() {
             </div>
           </div>
 
-          {}
           <div className="md:col-span-2 group bento-card border-neutral-900 hover:border-white/15 p-8 flex flex-col justify-between h-[360px]">
             <div>
               <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-white/5 text-neutral-300 border border-white/10 uppercase tracking-wider mb-4 font-mono">
@@ -316,11 +297,9 @@ export default function Home() {
         </div>
       </section>
 
-      {}
       <section id="system" className="max-w-[1400px] mx-auto pt-32 px-6 md:px-12 pb-4 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-rows-2 gap-4 h-auto lg:h-[600px]">
           
-          {}
           <div className="bento-card col-span-1 lg:col-span-2 p-8 flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 font-mono">
@@ -341,13 +320,11 @@ export default function Home() {
             </p>
           </div>
 
-          {}
           <div className="bento-card col-span-1 lg:row-span-2 relative group overflow-hidden h-[300px] lg:h-full">
             <div className="absolute inset-0 bg-neutral-900/50"></div>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative w-full aspect-square max-w-xs mx-auto flex items-center justify-center">
                 
-                {}
                 <div className="absolute w-60 h-60 border border-white/5 rounded-full"></div>
                 <div className="absolute w-40 h-40 border border-dashed border-white/10 rounded-full"></div>
                 
@@ -362,7 +339,6 @@ export default function Home() {
             </div>
           </div>
 
-          {}
           <div className="bento-card p-8 flex flex-col justify-center gap-6">
             <div className="space-y-2">
               <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-neutral-400 font-mono">
@@ -384,7 +360,6 @@ export default function Home() {
             </div>
           </div>
 
-          {}
           <div className="bento-card p-8 flex flex-col justify-center">
             <ul className="space-y-4 font-mono text-[10px] text-neutral-400">
               <li className="flex items-start gap-3">
@@ -405,7 +380,6 @@ export default function Home() {
         </div>
       </section>
 
-      {}
       <section id="telemetry" className="max-w-[1400px] mx-auto pt-32 px-6 md:px-12 pb-4 relative z-10">
         <div className="bento-card p-8 bg-[#0a0a0a] border border-white/5 rounded-2xl flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -438,7 +412,6 @@ export default function Home() {
         </div>
       </section>
 
-      {}
       <section id="faq" className="max-w-[800px] mx-auto pt-32 px-6 pb-4 relative z-10">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-medium tracking-tight text-white mb-2 font-display">
@@ -485,7 +458,6 @@ export default function Home() {
         </div>
       </section>
 
-      {}
       <section className="py-32 px-6 relative z-10">
         <div className="max-w-4xl mx-auto bento-card p-12 md:p-20 text-center relative overflow-hidden bg-white/[0.01] border-white/10">
           <div className="relative z-10 space-y-6">
@@ -509,7 +481,6 @@ export default function Home() {
         </div>
       </section>
 
-      {}
       <footer className="border-t border-white/5 bg-black pt-20 pb-12 relative z-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex flex-col items-center md:items-start gap-2">

@@ -108,7 +108,6 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
           </div>
 
           <div className="space-y-3">
-            {}
             <div className="flex items-center justify-between p-4 bg-[#151912]/20 border border-zinc-800 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-xs font-bold">
@@ -134,7 +133,6 @@ export function StepperWizard({ onComplete }: StepperWizardProps) {
               )}
             </div>
 
-            {}
             <div className="flex items-center justify-between p-4 bg-[#151912]/20 border border-zinc-800 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-xs font-bold">

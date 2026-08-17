@@ -33,7 +33,7 @@ export async function getValidAccessToken(userId: string, service: 'gmail' | 'ca
     throw new Error("Google OAuth not configured")
   }
 
-  console.log(`[getValidAccessToken] Refreshing ${service} token via Google for user=${userId}`)
+
 
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",

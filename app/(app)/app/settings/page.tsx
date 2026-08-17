@@ -115,7 +115,6 @@ function SettingsContent() {
   return (
     <div className="flex-1 flex flex-col h-screen bg-[#0d0d0d] text-[#e8e8e8] overflow-y-auto p-6 md:p-12 max-w-4xl mx-auto w-full select-none">
       
-      {}
       <header className="pb-6 border-b border-[#1a1a1a] mb-8">
         <h1 className="text-2xl font-semibold text-white tracking-tight">Settings Calibration</h1>
         <p className="text-xs text-[#888] font-sans font-light mt-1.5">
@@ -128,13 +127,10 @@ function SettingsContent() {
         )}
       </header>
 
-      {}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {}
         <div className="lg:col-span-7 space-y-8">
           
-          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-6 space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">Connected Accounts</h3>
@@ -142,7 +138,6 @@ function SettingsContent() {
             </div>
 
             <div className="space-y-3">
-              {}
               <div className="p-4 bg-[#141414] border border-[#1e1e1e] rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/15 border border-[#5aa3e8]/20 flex items-center justify-center text-xs font-mono font-bold text-[#5aa3e8]">
@@ -178,7 +173,6 @@ function SettingsContent() {
                 </div>
               </div>
 
-              {}
               <div className="p-4 bg-[#141414] border border-[#1e1e1e] rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/15 border border-[#5aa3e8]/20 flex items-center justify-center text-xs font-mono font-bold text-[#5aa3e8]">
@@ -218,10 +212,8 @@ function SettingsContent() {
 
         </div>
 
-        {}
         <div className="lg:col-span-5 space-y-6">
           
-          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
             <span className="text-[10px] font-mono text-[#888] uppercase tracking-wider block font-bold border-b border-[#1e1e1e]/40 pb-2">
               Notification System
@@ -258,7 +250,6 @@ function SettingsContent() {
             </div>
           </section>
 
-          {}
           <section className="bg-[#111] border border-[#1e1e1e] rounded-xl p-5">
             <button
               onClick={logout}

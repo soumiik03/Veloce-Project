@@ -71,7 +71,6 @@ export async function orchestrateReschedule(input: OrchestrateInput) {
             
             if (matchedEvent && matchedEvent.id) {
               targetEventId = matchedEvent.id
-              console.log(`[orchestrateReschedule] Automatically matched subject "${cleanSubject}" to event ID: ${targetEventId}`)
             }
           }
         }

@@ -25,7 +25,6 @@ export async function GET(req: NextRequest) {
 
     
     if (state && state !== "static_state") {
-      console.log(`[auth/callback/google] Processing Corsair OAuth for user=${userId}`)
 
       const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
       await processOAuthCallback(corsair, { code, state, redirectUri })
@@ -35,14 +34,12 @@ export async function GET(req: NextRequest) {
       const redirectCookie = req.cookies.get("corsair_oauth_redirect")?.value
       const nextUrl = resolveRedirectUrl(redirectCookie, gmailConnected, calendarConnected)
 
-      console.log(`[auth/callback/google] Redirecting to ${nextUrl}`)
       const response = NextResponse.redirect(new URL(nextUrl, req.url))
       response.cookies.delete("corsair_oauth_redirect")
       return response
     }
 
     
-    console.log(`[auth/callback/google] Processing legacy OAuth for user=${userId}`)
 
     const clientID = process.env.GOOGLE_CLIENT_ID
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET

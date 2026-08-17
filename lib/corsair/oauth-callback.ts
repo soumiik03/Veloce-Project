@@ -25,7 +25,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
     } catch {
       
     }
-    console.log(`[corsair/oauth] Gmail connected=${gmailConnected} for user=${userId}`)
+
   } catch (e) {
     console.warn("[corsair/oauth] Failed to check gmail token:", e)
   }
@@ -34,7 +34,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
   try {
     const calendarToken = await (tenant.googlecalendar as any).keys.get_access_token()
     calendarConnected = !!calendarToken
-    console.log(`[corsair/oauth] Calendar connected=${calendarConnected} for user=${userId}`)
+
   } catch (e) {
     console.warn("[corsair/oauth] Failed to check calendar token:", e)
   }
@@ -64,7 +64,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
             scopes,
           })
           .where(eq(googleAccounts.id, existingAccount.id))
-        console.log(`[corsair/oauth] Updated google_accounts for user=${userId}`)
+
       } else {
         await db
           .insert(googleAccounts)
@@ -75,7 +75,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
             tokenExpiry,
             scopes,
           })
-        console.log(`[corsair/oauth] Inserted google_accounts for user=${userId}`)
+
       }
     } catch (dbErr) {
       console.error("[corsair/oauth] Failed to sync tokens to google_accounts:", dbErr)
@@ -109,7 +109,7 @@ export async function syncOAuthTokens(userId: string): Promise<OAuthCallbackResu
           ...updates,
         })
     }
-    console.log(`[corsair/oauth] Updated onboarding_status: gmail=${gmailConnected}, calendar=${calendarConnected}`)
+
   } catch (dbErr) {
     console.error("[corsair/oauth] Failed to update onboarding_status:", dbErr)
   }
