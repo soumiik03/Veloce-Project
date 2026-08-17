@@ -1,86 +1,162 @@
 # 🚀 Veloce
 
-**AI-Powered Email & Calendar Assistant**
+### AI-Powered Email & Calendar Workspace
 
-Veloce is an AI-powered workspace assistant that helps users manage emails, meetings, and daily commitments through natural language. Instead of switching between Gmail and Google Calendar, users can interact with a single AI assistant to organize their workday efficiently.
+Veloce is an AI-powered workspace assistant that brings **email, calendar, and daily commitments into one intelligent interface**.
 
-## ✨ Features
+Instead of constantly switching between Gmail, Google Calendar, and productivity tools, Veloce lets you interact with your workday through **natural language** — helping you find important emails, manage meetings, track commitments, and start your day with a personalized briefing.
 
-### 📧 Smart Email Management
+> **Your inbox, calendar, and commitments — one intelligent workspace.**
+
+---
+
+## ✨ What Veloce Does
+
+### 📧 Intelligent Email Management
+
+Manage your inbox without manually digging through hundreds of emails.
 
 * Read and summarize emails
-* Prioritize important conversations
-* Draft and send emails using AI
+* Identify high-priority conversations
 * Search emails using natural language
+* Draft and send emails with AI assistance
+* Surface emails that require your attention
 
-### 📅 Intelligent Calendar Assistant
+### 📅 AI Calendar Assistant
 
-* View upcoming events
-* Schedule and manage meetings
-* Access meeting details instantly
-* Coordinate calendar availability
+Stay on top of your schedule without constantly switching to Google Calendar.
+
+* View upcoming meetings
+* Access meeting details
+* Schedule and manage events
+* Check calendar availability
+* Understand your schedule through natural language
 
 ### 🌅 Daily Morning Briefing
 
-Every morning, Veloce generates a personalized briefing containing:
+Start every morning with a concise overview of what actually matters.
 
-* Top emails requiring attention
-* Today's meetings with relevant context
-* Pending commitments and follow-ups
-* Important deadlines
-* Actionable recommendations for the day
+Veloce generates a personalized briefing containing:
+
+* 🔴 Top emails requiring your attention
+* 📅 Today's meetings and relevant context
+* ⏳ Pending commitments and follow-ups
+* 🎯 Important deadlines
+* 💡 One actionable recommendation for the day
+
+The goal is simple: **know what needs your attention before your day gets busy.**
 
 ### 🤖 AI Workspace Assistant
 
-* Natural language interface
-* Unified access to email and calendar data
+Interact with your workspace using natural language instead of navigating through multiple applications.
+
+Veloce provides:
+
+* Natural language interaction
 * Context-aware responses
+* Unified email and calendar access
 * Personalized productivity assistance
+* AI-powered workflow automation
+
+---
+
+## 🧠 Why Veloce?
+
+Modern work is fragmented across multiple applications.
+
+You check Gmail for emails, Google Calendar for meetings, another tool for tasks, and your memory for commitments.
+
+Veloce brings these workflows together.
+
+```text
+                 ┌─────────────────────┐
+                 │       Veloce        │
+                 │   AI Workspace      │
+                 └──────────┬──────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+        ┌─────▼─────┐               ┌─────▼─────┐
+        │   Gmail   │               │  Calendar │
+        └───────────┘               └───────────┘
+              │                           │
+              └─────────────┬─────────────┘
+                            │
+                   ┌────────▼────────┐
+                   │ AI + Context    │
+                   │ + Automation    │
+                   └─────────────────┘
+```
+
+The result is a single workspace that helps users **understand, prioritize, and act on their work.**
+
+---
 
 ## 🛠️ Tech Stack
 
-### Frontend
+| Layer            | Technology            |
+| ---------------- | --------------------- |
+| Framework        | Next.js               |
+| Language         | TypeScript            |
+| Styling          | Tailwind CSS          |
+| Database         | PostgreSQL            |
+| Database Hosting | Neon                  |
+| ORM              | Drizzle ORM           |
+| Authentication   | Clerk                 |
+| Email            | Gmail                 |
+| Calendar         | Google Calendar       |
+| Integrations     | Corsair               |
+| AI               | LLM-powered workflows |
+| Deployment       | Vercel                |
 
-* Next.js
-* TypeScript
-* Tailwind CSS
+---
 
-### Backend
+## 🏗️ Architecture
 
-* Next.js Server Actions
-* PostgreSQL (Neon)
-* Drizzle ORM
+Veloce is built around a unified AI workspace that connects external productivity services with application data and AI-powered workflows.
 
-### Authentication
+```text
+User
+ │
+ ▼
+Veloce UI
+ │
+ ▼
+Next.js Application
+ │
+ ├── AI Workspace
+ │     └── LLM-powered workflows
+ │
+ ├── Email Integration
+ │     └── Gmail
+ │
+ ├── Calendar Integration
+ │     └── Google Calendar
+ │
+ └── Application Data
+       └── PostgreSQL + Drizzle
+```
 
-* Clerk
+Authentication and external service integrations are handled through **Clerk and Corsair**, while PostgreSQL provides persistent application storage.
 
-### Integrations
-
-* Gmail
-* Google Calendar
-* Corsair
-
-### AI
-
-* LLM-powered workflow automation
+---
 
 ## 🚀 Getting Started
 
-### Clone the Repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/yourusername/veloce.git
 cd veloce
 ```
 
-### Install Dependencies
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-### Configure Environment Variables
+### 3. Configure environment variables
 
 Create a `.env.local` file:
 
@@ -96,39 +172,101 @@ GOOGLE_CLIENT_SECRET=
 OPENROUTER_API_KEY=
 ```
 
-### Run Database Migrations
+> Make sure all required credentials are configured before starting the application.
+
+### 4. Push the database schema
 
 ```bash
 npx drizzle-kit push
 ```
 
-### Start Development Server
+### 5. Start the development server
 
 ```bash
 npm run dev
 ```
 
-## 🎯 Problem Statement
+Open the application at:
 
-Modern professionals spend significant time switching between email, calendar, and productivity tools. Important emails get missed, meetings lack preparation, and commitments slip through the cracks.
-
-## 💡 Solution
-
-Veloce unifies email and calendar workflows into a single AI-powered assistant that proactively helps users stay organized, prioritize tasks, and prepare for their day through intelligent automation and personalized insights.
-
-## 🔮 Future Roadmap
-
-* Multi-account support
-* Slack integration
-* Meeting preparation briefs
-* AI-generated follow-up actions
-* Team collaboration features
-* Mobile application
-
-## 🏆 Built For
-
-Hackathons, productivity enthusiasts, students, professionals, founders, and teams looking to reduce workflow friction and increase productivity.
+```text
+http://localhost:3000
+```
 
 ---
 
-Made with ❤️ using Next.js, Neon, Drizzle, Clerk, and Corsair.
+## 🎯 Problem
+
+Knowledge workers spend a significant amount of time switching between communication and productivity tools.
+
+Important emails can get buried.
+
+Meetings can lack preparation.
+
+Follow-ups and commitments can easily be forgotten.
+
+The problem isn't a lack of information — **it's the friction involved in managing it.**
+
+---
+
+## 💡 Solution
+
+Veloce acts as an intelligent layer over your existing productivity workflow.
+
+Instead of asking users to manually navigate through multiple applications, Veloce helps them:
+
+**Understand → Prioritize → Act**
+
+It combines email and calendar context with AI-powered assistance to reduce workflow friction and help users focus on the work that actually matters.
+
+---
+
+## 🔮 Roadmap
+
+### Planned
+
+* [ ] Multi-account support
+* [ ] Slack integration
+* [ ] AI-generated meeting preparation
+* [ ] Automatic follow-up actions
+* [ ] Smarter commitment tracking
+* [ ] Team collaboration
+* [ ] Mobile application
+
+---
+
+## 🏆 Built For
+
+Veloce is designed for people who live in their inbox and calendar:
+
+* 👨‍💻 Developers
+* 🎓 Students
+* 🚀 Founders
+* 💼 Professionals
+* 👥 Teams
+* ⚡ Productivity enthusiasts
+
+---
+
+## 🤝 Contributing
+
+Contributions, ideas, and feedback are welcome.
+
+If you find a bug or have an idea for improving Veloce, feel free to open an issue or submit a pull request.
+
+---
+
+## 📄 License
+
+This project is currently for educational and experimental purposes.
+
+---
+
+<div align="center">
+
+### ⚡ Veloce
+
+**Work less on managing your work.**
+
+Built with ❤️ using Next.js, PostgreSQL, Drizzle, Clerk, and Corsair.
+
+</div>
