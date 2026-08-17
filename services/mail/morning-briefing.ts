@@ -6,7 +6,7 @@ import { and, eq, gte, lte, asc } from "drizzle-orm"
 
 async function generateBriefingText(prompt: string): Promise<string> {
   const openrouterKey = process.env.OPENROUTER_API_KEY
-  const openrouterModel = process.env.OPENROUTER_MODEL || "qwen/qwen-2.5-coder-32b-instruct:free"
+  const openrouterModel = process.env.OPENROUTER_MODEL || "openai/gpt-oss-20b:free"
   const geminiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
 
   if (openrouterKey) {

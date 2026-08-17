@@ -41,7 +41,7 @@ export async function analyzeEmailWithGemini(
   from: string
 ): Promise<GeminiMeetingAnalysis> {
   const openrouterKey = process.env.OPENROUTER_API_KEY
-  const openrouterModel = process.env.OPENROUTER_MODEL || "qwen/qwen-2.5-coder-32b-instruct:free"
+  const openrouterModel = process.env.OPENROUTER_MODEL || "openai/gpt-oss-20b:free"
   const geminiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
 
   if (!openrouterKey && !geminiKey) {
@@ -590,7 +590,7 @@ export async function runAgentCoPilotStream(
   const currentSystemPrompt = `${SYSTEM_PROMPT}\n\nIMPORTANT: The current date and time is ${new Date().toLocaleString()} (timezone: Asia/Kolkata, current ISO time: ${new Date().toISOString()}). Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long' })}. Please parse and resolve all dates/times (e.g., relative references like "tomorrow", "this Friday", "June 19") relative to this date and time.`
 
   const openrouterKey = process.env.OPENROUTER_API_KEY
-  const openrouterModel = process.env.OPENROUTER_MODEL || "qwen/qwen-2.5-coder-32b-instruct:free"
+  const openrouterModel = process.env.OPENROUTER_MODEL || "openai/gpt-oss-20b:free"
   const geminiKey = process.env.GEMINI_API_KEY || process.env.Gemini_API_KEY
 
   if (!openrouterKey && !geminiKey) {
